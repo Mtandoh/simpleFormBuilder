@@ -5,4 +5,4 @@ Drag&amp;Drop JavaScript form Builder
 
 $("#divform").formilize();
 
-![Image description](https://github.com/Mtandoh/simpleFormBuilder/blob/master/screenshot.JPG)
+[![Image description](https://github.com/Mtandoh/simpleFormBuilder/blob/master/screenshot.JPG)](https://www.datumforms.com/?visitor_temp_form=true)
