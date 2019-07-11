@@ -1,0 +1,5 @@
+version:1.2
+os:ubuntu
+files:
+source:/
+destination:/home/ubuntu/
