@@ -1,5 +1,5 @@
-version:1.2
-os:ubuntu
+version: 1.2
+os: ubuntu
 files:
-source:/
-destination:/home/ubuntu/
+  - source: /
+    destination: /home/ubuntu/
