@@ -20,7 +20,7 @@ var outOptions = '';
         var id = '';
         var placeholder;
         var readonly;
-        var min,max, label, value, required;
+        var min,max, label, value, required,conditional1,cond_value,cond_option ;
 
         if (jsonns === 1) {
             data_type = element_type.attr('data-type');
@@ -45,7 +45,8 @@ var outOptions = '';
             if((data_type==='paragraph')||(data_type==='header')){
                 fb = field_label.replace(/field_repIIDD/g, id).replace(/Text Field/g, element_type.label);
             }else{
-                fb = field_label.replace(/repIIDD/g, id).replace(/Text Field/g, element_type.label);
+              //  fb = field_label.replace(/repIIDD/g, id).replace(/Text Field/g, element_type.label);
+                fb =  '<label id="field_'+id+'" for="'+id+'" class="fb-repType-Label formzone pull-left '+element_type.required+'">'+element_type.label+'</label>';
             }
             placeholder = element_type.placeholder;
             readonly = element_type.readonly;
@@ -54,9 +55,13 @@ var outOptions = '';
             label = element_type.label;
             value = element_type.value;
             required = element_type.required;
+            conditional1 = element_type.conditional;
+            cond_value = element_type.cond_value;
+            cond_option = element_type.cond_option;
             v='';
             if (jsonns===3){
                 v = field_actions.replace(/vanco/g, id).replace(/data_type/g, "'"+data_type+"'");
+
             }
 
 
@@ -65,15 +70,21 @@ var outOptions = '';
                 if(data_type === 'currency'){ currency = '<span class="input-group-addon">&#8373;</span>'; money = 'class="input-group"' }
                 else if (data_type === 'percentage'){ currency = '<span class="input-group-addon">%</span>'; money = 'class="input-group"' }
                 else { currency = ''; money = '';}
-                outType = '<div '+ money + ' class="main-form" data-type="'+data_type+'" id="main' + id + '">' + fb+ v+'<br>';
+                outType = '<div '+ money + ' class="main-form '+conditional1+' " data-cond-option="'+cond_option+'" data-cond-value="'+cond_value+'" data-type="'+data_type+'" id="main' + id + '">' + fb+ v+'<br>';
                 outType +=currency;
-                outType += '<input ' + required + ' min="' + min + '" max="' + max + '" type="' + data_type + '" ' + readonly + ' class="form-control formzone" placeholder="' + placeholder.replace(/~~/g,'\n') + '" name="' + id + '" id="' + id + '"  value="' + value.replace(/~~/g,'\n') + '"></div>';
+                outType += '<input step="any" ' + required + ' min="' + min + '" max="' + max + '" type="' + data_type + '" ' + readonly + ' class="form-control formzone" placeholder="' + placeholder.replace(/~~/g,'\n') + '" name="' + id + '" id="' + id + '"  value="' + value.replace(/~~/g,'\n') + '"></div>';
             } else if (data_type === 'textarea') {
-                outType = '<div class="main-form" data-type="'+data_type+'" id="main' + id + '">' + fb+ v+'<br>';
+                outType = '<div class="main-form '+conditional1+'" data-cond-option="'+cond_option+'" data-cond-value="'+cond_value+'" data-type="'+data_type+'" id="main' + id + '">' + fb+ v+'<br>';
                 outType += '<textarea ' + required + ' type="textarea" ' + readonly + 'data-max ="' + max + '" class="form-control formzone" name="' + id + '" placeholder="' + placeholder.replace(/~~/g,'\n') + '" id="' + id + '">' + value.replace(/~~/g,'\n') + '</textarea></div>';
             }
+            else if (data_type === 'picture') {
+                outType = '<div class="main-form '+conditional1+'" data-cond-option="'+cond_option+'" data-cond-value="'+cond_value+'" data-type="'+data_type+'" id="main' + id + '">' + fb+ v+'<br>';
+                outType += '<input  type="file" ' + readonly + 'data-max ="' + max + '" class="form-control formzone js-image-upload" accept="image/*" name="u___' + id + '"  id="u___' + id + '" value="' + value + '" >'
+                outType += '<input ' + required + ' type="hidden" class="form-control formzone"  name="' + id + '"  id="' + id + '" value="' + value + '" >' +
+                    '<div class="js-image-container" id="img' + id + '" ></div></div>';
+            }
             else if (data_type === 'select') {
-                outType = '<div class="main-form" data-type="'+data_type+'" id="main' + id + '">' + fb + v+'<br>';
+                outType = '<div class="main-form  '+conditional1+'" data-cond-option="'+cond_option+'" data-cond-value="'+cond_value+'" data-type="'+data_type+'" id="main' + id + '">' + fb + v+'<br>';
                 outType += '<select class="form-control" ' + readonly + ' name="' + id + '" id="' + id + '">';
 
                 if (jsonns === 1) {
@@ -85,14 +96,19 @@ var outOptions = '';
                         } else {
                             selected = '';
                         }
-                        outType += '<option ' + selected + ' value="' + element_type.value[x].value + '" id="select-1495730467685-preview-0">' + element_type.value[x].label + '</option>';
+                        if (jsonns===3){
+                            tempV = element_type.value[x].value;
+                        }else {
+                            tempV = element_type.value[x].label  +'___' + element_type.value[x].value;
+                        }
+                        outType += '<option ' + selected + ' value="' + tempV + '" id="select-1495730467685-preview-0">' + element_type.value[x].label + '</option>';
                     }
 
                 }
                 outType += '</select></div></div><br>';
             }
             else if (data_type === 'checkbox') {
-                outType = '<div class="main-form" data-type="'+data_type+'" id="main' + id + '">' + fb+ v+'<br>' +
+                outType = '<div class="main-form '+conditional1+'" data-cond-option="'+cond_option+'" data-cond-value="'+cond_value+'" data-type="'+data_type+'" id="main' + id + '">' + fb+ v+'<br>' +
                     '<div id="' + id + '">';
 
                 if (jsonns === 1) {
@@ -104,15 +120,20 @@ var outOptions = '';
                         } else {
                             selected = '';
                         }
+                        if (jsonns===3){
+                            tempV = element_type.value[x].value;
+                        }else {
+                            tempV = element_type.value[x].label  + '___' + element_type.value[x].value;
+                        }
 
-                        outType += '<div class="checkbox"><label><input type="checkbox" ' + selected + ' ' + readonly + ' value="' + element_type.value[x].value + '" id="' + id + '" name="' + id + '[]"' + ' >' + element_type.value[x].label + '</label></div>';
+                        outType += '<div class="checkbox"><label><input type="checkbox" ' + selected + ' ' + readonly + ' value="' + tempV + '" id="' + id + '" name="' + id + '[]"' + ' >' + element_type.value[x].label + '</label></div>';
 
                     }
                 }
                 outType += '</div></div>'
 
         }else if (data_type === 'radio') {
-                outType = '<div class="main-form" data-type="'+data_type+'" id="main' + id + '">' + fb+ v+'<br>' +
+                outType = '<div class="main-form '+conditional1+'" data-cond-option="'+cond_option+'" data-cond-value="'+cond_value+'" data-type="'+data_type+'" id="main' + id + '">' + fb+ v+'<br>' +
                     '<div id="' + id + '">';
 
                 if (jsonns === 1) {
@@ -124,8 +145,13 @@ var outOptions = '';
                         } else {
                             selected = '';
                         }
+                        if (jsonns===3){
+                            tempV = element_type.value[x].value;
+                        }else {
+                            tempV =  element_type.value[x].label  +'___' + element_type.value[x].value;
+                        }
 
-                        outType += '<div class="radio"><label><input required type="radio" ' + selected + ' ' + readonly + ' value="' + element_type.value[x].value + '" id="' + id + '" name="' + id + '"' + ' >' + element_type.value[x].label + '</label></div>';
+                        outType += '<div class="radio"><label><input '+ required +' type="radio" ' + selected + ' ' + readonly + ' value="' + tempV  + '" id="' + id + '" name="' + id + '"' + ' >' + element_type.value[x].label + '</label></div>';
 
                     }
                 }
@@ -137,7 +163,7 @@ var outOptions = '';
             } else if ((data_type === 'header')) {
                 outType = '<div class="main-form" data-type="'+data_type+'" id="main' + id + '">' + fb.replace(/label/g, 'h3') + v +'<br><br><br></div>';
             } else if ((data_type === 'table')) {
-                outType = '<div data-type="'+data_type+'" class="panel panel-default main-form" id="main' + id + '">' + fb.replace(/label/g, 'h4').replace(/repIIDD/g, id).replace(/fb-repType-Label/g,'panel-body') + v + '';
+                outType = '<div data-type="'+data_type+'" class="panel panel-default main-form '+conditional1+' " data-cond-option="'+cond_option+'" data-cond-value="'+cond_value+'" id="main' + id + '">' + fb.replace(/label/g, 'h4').replace(/repIIDD/g, id).replace(/fb-repType-Label/g,'panel-body') + v + '';
 
 
 
@@ -180,8 +206,10 @@ var outOptions = '';
              }
          }
          for(var k = 0; k < cools.length; k++) {
+
          codeblockC += '<input type="text" '+disabled1+' class="option-label" value="'+cools[k]["name"]+'" name="select-optionC" placeholder="Label"><input type="text" '+disabled1+' class="option-label" value="'+cools[k]["value"]+'" name="select-optionCv" placeholder="Value"><br>';
              if (k === 0){
+
                  disabled1 = '';
              }
          }
@@ -189,9 +217,10 @@ var outOptions = '';
         tableCol = codeblockC;
 
         tabletype = "radio";
+        tabletype_id = '';
         selected = '';
 
-    if (iid == 461){
+    if ((iid == 461)||(iid == 1111)){
     tabletype = "text";
     }
         for(var i = 0; i < rows; i++) {
@@ -215,9 +244,15 @@ var outOptions = '';
                         if((typeof(values)!== "undefined" && (values.length != '0'))) {
                             try {
                                 if ((values[i - 1]["row"] == i) && (values[i - 1]["value"] == cools[j]["value"])) {
-                                    selected = 'checked';
+                                    selected =  'checked';
                                 } else {
-                                    selected = '';
+                                    if (values[i - 1]["value"] == cools[j]["name"]) {
+                                        selected =  'checked';
+                                    }else{
+                                        selected = '';
+                                    }
+
+
                                 }
                             }catch (e) {
                                 // handle the unsavoriness if needed
@@ -236,7 +271,13 @@ var outOptions = '';
                             }
                         }
                         codeblock += '<td id="'+iid+'_'+i+'_'+j+'">';
-                        codeblock += '<input required type="'+tabletype+'" name="'+iid+'_'+i+'_'+j+'" ' + selected + ' value="'+Cvalue+'">';
+
+                        if (tabletype === "text"){
+                            tabletype_id = '_'+j;
+                            codeblock += '<input type="'+tabletype+'" name="'+iid+'_'+i+tabletype_id+'" ' + selected + ' value="'+Cvalue+'">';
+                        }else {
+                            codeblock += '<input type="' + tabletype + '" name="' + iid + '_' + i + tabletype_id + '" ' + selected + ' value="' + cools[j]["name"] + '___' + Cvalue + '">';
+                        }
                         codeblock += '</td>';
 
                     }
@@ -364,24 +405,35 @@ if (outputType === 2){
         var ele = $('#ol_'+something);
         ele.append('<li class="ui-sortable-handle"><input type="radio" class="option-selected" value="false" name="selected-option" placeholder=""><input type="text" class="option-label" value="Option 3" name="select-option" placeholder="Label"><input type="text" class="option-value" value="Option 3" name="select-value" placeholder="value"><a onclick="$(this).parent().remove();" class="remove btn" title="Remove Element">×</a>');
     }
-    function add_rowCol(row,col) {
-        var codeblockR = $('#Trow');
-        var codeblockC = $('#Tcol');
-        var codeblockRi = $('#Trow input');
-        var codeblockCi = $('#Tcol input');
+    function add_rowCol(row,col,iswhat) {
 
-        if(codeblockRi.length<row){
-            codeblockR.append('<input type="text" class="option-label" value="Option '+row+'" name="select-optionR" placeholder="Label">');
-        }else if(codeblockRi.length>row){
-            codeblockR.children().last().remove();
-           // codeblockR.removeChild(codeblockR.childNodes[codeblockRi.length - 1]);
+        if (iswhat =='col'){
+
+            var codeblockC = $('#Tcol');
+
+            var codeblockCi = $('#Tcol input');
+
+
+
+            if(codeblockCi.length/2<col){
+                codeblockC.append('<input type="text" class="option-label" value="Option '+col+'" name="select-optionC" placeholder="Label"><input type="text" class="option-label" value="Option '+col+'" name="select-optionCv" placeholder="Value">');
+            }else if(codeblockCi.length/2>col){
+                codeblockC.children().slice(-2).remove();
+             //     codeblockC.removeChild(codeblockC.childNodes[codeblockCi.length - 2]);
+            }
+
+        }else if (iswhat =='row') {
+            var codeblockR = $('#Trow');
+            var codeblockRi = $('#Trow input');
+            if(codeblockRi.length<row){
+                codeblockR.append('<input type="text" class="option-label" value="Option '+row+'" name="select-optionR" placeholder="Label">');
+            }else if(codeblockRi.length>row){
+                codeblockR.children().last().remove();
+                // codeblockR.removeChild(codeblockR.childNodes[codeblockRi.length - 1]);
+            }
         }
-        if(codeblockCi.length<col){
-            codeblockC.append('<input type="text" class="option-label" value="Option '+col+'" name="select-optionC" placeholder="Label"><input type="text" class="option-label" value="Option '+col+'" name="select-optionCv" placeholder="Value">');
-        }else if(codeblockCi.length>col){
-            codeblockC.children().last().remove();
-          //  codeblockC.removeChild(codeblockC.childNodes[codeblockCi.length - 1]);
-        }
+
+
     }
 
     function updateLabel(something,another) {
@@ -397,6 +449,14 @@ if (outputType === 2){
             '<br><label class="pull-left">Label</label>'+
             '<textarea name="label" type="textarea" nonly="'+typ+'" vanshe="'+something+'" placeholder="Label" class="fld-label form-control" onkeyup="updateLabel(\''+something+'\',this.value)">'+valuey+'</textarea><br>' +
             '';
+        fieldi_edit += '<div id="logic_vanco" class="edit_template">'+
+            '<br><label class="pull-left">Logic</label>'+
+            '<select name="form_logic" class="fld-label form-control" onchange="updateOption(\''+something+'\',this.value)">' +
+            field_condtion(something)+
+            '</select>' +
+            '<br>' +
+            '<div id="logic_option">' +
+            '</div>';
 
         if (typ === 'text' || typ === 'date' || typ === 'number' || typ === 'textarea') {
 
@@ -430,10 +490,12 @@ if (outputType === 2){
                 '<label class="pull-left">Scorable</label>  &nbsp; &nbsp;<input type="checkbox" class="fld-required" min="1" name="fld_score" value="1"><br>' +
                 '<div class="row">' +
                 '<div class="col-sm-2"><label>Number of row and column : </label></div>' +
-                '<div class="col-sm-3"><input id="trowC" type="number" onchange="add_rowCol($(\'#trowC\').val(),$(\'#tcolC\').val())" value="'+tableRowCount+'" min="1" placeholder="number of rows"></div>' +
-                '<div class="col-sm-7"><input id="tcolC" type="number" onchange="add_rowCol($(\'#trowC\').val(),$(\'#tcolC\').val())" value="'+tableColCount+'" min="1" placeholder="number of columns"></div></div>' +
+                '<div class="col-sm-3"><input id="trowC" type="number" onchange="add_rowCol($(\'#trowC\').val(),$(\'#tcolC\').val(),\'row\')" value="'+tableRowCount+'" min="1" placeholder="number of rows"></div>' +
+                '<div class="col-sm-7"><input id="tcolC" type="number" onchange="add_rowCol($(\'#trowC\').val(),$(\'#tcolC\').val(),\'col\')" value="'+tableColCount+'" min="1" placeholder="number of columns"></div></div>' +
                 '<br><div class="form-group field-options">' +
-                '<div class="row"><div class="col-sm-2"><label class="false-label">Options:</label></div>' + '<div class="col-sm-3"><label class="false-label">Rows &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;</label><div id="Trow">'+tableRow+'</div></div>' + '<div class="col-sm-7"><label class="false-label">Columns &nbsp; &nbsp;</label><div id="Tcol">'+tableCol+'</div></div></div>'+
+                '<div class="row"><div class="col-sm-2"><label class="false-label">Options:</label></div>' +
+                '<div class="col-sm-3"><label class="false-label">Rows &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;</label><div id="Trow">'+tableRow+'</div></div>' +
+                '<div class="col-sm-7"><label class="false-label">Columns &nbsp; &nbsp;</label><div id="Tcol">'+tableCol+'</div></div></div>'+
                 '</div>';
 
         }
@@ -448,13 +510,14 @@ if (outputType === 2){
         var nonly;
         var vanshe;
         var scorable;
-        var max;
+        var max,conditional1 = '',cond_value='',cond_option='' ;
         var placeholder;
         var required;
         var values=[];
         var rows=[];
         var columns=[];
         var jokingbird = '';
+
         $("#div_" + JsonDiv + " :input").each(function () {
             if ($(this).attr('type') === "checkbox") {
                 required = $(this).val();
@@ -478,6 +541,15 @@ if (outputType === 2){
             }else if (($(this).attr('name') === "required")) {
                 required = $(this).val();
             }
+            else if (($(this).attr('name') === "form_logic")) {
+
+                cond_option = $(this).val();
+            }
+            else if (($(this).attr('name') === "logic_option")) {
+                    cond_value = $(this).val();
+                    conditional1 = 'conditional';
+
+            }
         });
         if(jokingbird!=1){
             values='';
@@ -495,6 +567,9 @@ if (outputType === 2){
             "min": "",
             "max": max,
             "required": required,
+            "conditional": conditional1,
+            "cond_option": cond_option,
+            "cond_value": cond_value,
             "scorable": scorable
         });
         return json;
@@ -513,6 +588,14 @@ if (outputType === 2){
             //  var options = [];
             var optionValues = [];
             var tag = $(this).attr('data-type');
+
+            if ( $(this).is( ".conditional" ) ) {
+
+                conditional1 = 'conditional';
+
+            }else{
+                conditional1 = '';
+            }
             if ((tag === 'paragraph')) {
                 id = $(this).children('p').attr('id');
                 json.push({
@@ -524,6 +607,9 @@ if (outputType === 2){
                     "readonly": " ",
                     "min": "",
                     "max": "",
+                    "conditional": conditional1,
+                    "cond_option": $(this).data('cond-option'),
+                    "cond_value": $(this).data('cond-value'),
                     "required": ""
                 });
             }else if ((tag === 'header')) {
@@ -537,6 +623,9 @@ if (outputType === 2){
                     "readonly": " ",
                     "min": "",
                     "max": "",
+                    "conditional": conditional1,
+                    "cond_option": $(this).data('cond-option'),
+                    "cond_value": $(this).data('cond-value'),
                     "required": ""
                 });
             }
@@ -544,12 +633,15 @@ if (outputType === 2){
                 json.push({
                     "type": tag,
                     "label": $(this).children('label').text(),
-                    "name": $(this).children(tag).attr('id'),
+                    "name": $(this).children('input').attr('id'),
                     "placeholder": $(this).children('input').attr('placeholder'),
                     "value": "",
                     "readonly": "",
                     "min": "",
                     "max": "",
+                    "conditional": conditional1,
+                    "cond_option": $(this).data('cond-option'),
+                    "cond_value": $(this).data('cond-value'),
                     "required": "required"
                 });
             }else if ((tag === 'select')) {
@@ -569,6 +661,9 @@ if (outputType === 2){
                     "readonly": "",
                     "min": "",
                     "max": "",
+                    "conditional": conditional1,
+                    "cond_option": $(this).data('cond-option'),
+                    "cond_value": $(this).data('cond-value'),
                     "required": "required"
                 });
             }else if ((tag === 'checkbox')||(tag === 'radio')) {
@@ -587,6 +682,9 @@ if (outputType === 2){
                     "readonly": "",
                     "min": "",
                     "max": "",
+                    "conditional": conditional1,
+                    "cond_option": $(this).data('cond-option'),
+                    "cond_value": $(this).data('cond-value'),
                     "required": "required"
                 });
             }else if ((tag === 'textarea')) {
@@ -599,6 +697,9 @@ if (outputType === 2){
                     "readonly": "",
                     "min": "",
                     "max": "",
+                    "conditional": conditional1,
+                    "cond_option": $(this).data('cond-option'),
+                    "cond_value": $(this).data('cond-value'),
                     "required": "required"
                 });
             }else if ((tag === 'table')) {
@@ -611,7 +712,7 @@ if (outputType === 2){
                 var ttbleCountC = ttable.rows[0].cells.length;
                 var rows=[];
                 var columns=[];
-                columns.push({"name":'generic 1'});
+                columns.push({"name":'generic 1',"value":"generic 1"});
                 rows.push({"name":'generic 1'});
                 for(var i = 0; i < ttbleCountR/2; i++) {
 
@@ -640,6 +741,9 @@ if (outputType === 2){
                     "readonly": "",
                     "min": "",
                     "max": "",
+                    "conditional": conditional1,
+                    "cond_option": $(this).data('cond-option'),
+                    "cond_value": $(this).data('cond-value'),
                     "required": "required"
                 });
             }
@@ -657,8 +761,10 @@ if (outputType === 2){
         forms['form_settings'] = settings;
         forms['form_elements'] = json;
 
+       // console.log(json);
+
         $.ajax({
-            url: 'xxxxxx',
+            url: 'https://form.datumForms.com/admin/formsCon.php?new_form',
             type: 'POST',
             async: true,
             crossDomain: true,
@@ -667,7 +773,7 @@ if (outputType === 2){
             data:forms,
             contentType: 'application/x-www-form-urlencoded',
             success: function(data){
-                location.reload();
+               location.reload();
             }
         });
 
@@ -696,7 +802,7 @@ if (outputType === 2){
             var ttbleCountC = ttable.rows[0].cells.length;
             var rows=[];
             var columns=[];
-            columns.push({"name":'generic 1'});
+            columns.push({"name":'generic 1',"value":"generic 1"});
             rows.push({"name":'generic 1'});
             for(var i = 0; i < ttbleCountR/2; i++) {
 
@@ -739,10 +845,86 @@ if (outputType === 2){
         }
         outOptions ='';
         for(var k = 0; k < optionValues.length; k++) {
+
             outOptions += '<li class="ui-sortable-handle"><input type="radio" class="selected-option" value="false" name="selected-option" placeholder=""><input type="text" class="option-label" value="'+optionValues[k]["label"]+'" name="select-option" placeholder="Label"><input type="text" class="option-value" value="'+optionValues[k]["value"]+'" name="select-value" placeholder="Value"><a onclick="$(this).parent().remove();" class="remove btn" title="Remove Element">×</a>' +
                 '</li>'
         }
 
     }
+    function field_condtion(something) {
+        var optionsCond = '<option value="" selected>No Logic</option>';
+        $('.main-form').each(function () {
+
+            var optionValues = [];
+            var tag = $(this).attr('data-type');
+             if ((tag === 'select')) {
+                id = $(this).children(tag).attr('id');
 
 
+                $('#'+id).children('option').each(function() {
+                    optionValues.push({"label":$(this).text(),"selected":"false","value":$(this).val()});
+                });
+
+                 if (id != something) {
+                     optionsCond += '<option value="' + id + '">' + $('#field_' + id).text() + '</option>';
+                 }
+
+
+            }else if ((tag === 'checkbox')||(tag === 'radio')) {
+
+                id = $(this).children('label').attr('for');
+
+                $('#'+id).find('input').each(function() {
+                    optionValues.push({"label":$(this).parent().text(),"selected":"false","value":$(this).val()});
+                });
+
+                 if (id != something) {
+                     optionsCond += '<option value="' + id + '">' + $('#field_' + id).text() + '</option>';
+                 }
+
+
+            }
+
+
+        });
+
+        return optionsCond;
+    }
+
+    function updateOption(something,thevalue) {
+        var optionsCond = '';
+        $('.main-form').each(function () {
+
+            var optionValues = [];
+            var tag = $(this).attr('data-type');
+
+            if ((tag === 'select')) {
+
+
+                id = $(this).children(tag).attr('id');
+
+                if (id == thevalue) {
+                    $('#' + id).children('option').each(function () {
+                        optionsCond += '<option value="' + $(this).val() + '">' + $(this).text() + '</option>';
+                    });
+                }
+
+
+            }else if ((tag === 'checkbox')||(tag === 'radio')) {
+
+                id = $(this).children('label').attr('for');
+                if (id == thevalue) {
+                    $('#' + id).find('input').each(function () {
+                        optionsCond += '<option value="' + $(this).val() + '">' + $(this).parent().text() + '</option>';
+                    });
+                }
+
+
+
+            }
+
+        });
+        $('#logic_option').empty();
+        $('#logic_option').append("<select name='logic_option'>"+optionsCond+"</select>");
+
+    }
