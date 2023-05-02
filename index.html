@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Blank HTML5</title>
+        <script type="text/javascript" src="https://form.datumforms.com/assets/js/builder2.js"></script>
+        <link type="text/css" href="https://mtandoh.github.io/simpleFormBuilder/builder.css" rel="stylesheet">
+
+       
+<script>
+    const myOptions = {
+        formElement:"#mikform",
+    buttons: [
+        {
+            id: 'promptBtn',
+            className: 'btn-default',
+            text: 'Prompt',
+        },
+        {
+            id: 'imageAssetBtn',
+            className: 'btn-default',
+            text: 'Image Assets',
+        },
+    ],
+    eventHandlers: {
+        promptBtn: function () {
+            showQuestionnairePrompt();
+        },
+        imageAssetBtn: function () {
+            imageAsset();
+        },
+    },
+        initialFormData: [{"type":"table","label":"","name":"v9702688460857","demographic":"","rows":[{"name":"generic 1"},{"name":"option 2"}],"columns":[{"name":"generic 1","value":"generic 1"},{"name":"option 2"},{"name":"option 3"},{"name":"option 4"}],"tableType":"","class":"panel panel-default main-form ","defaultValue":"","choices":[],"placeholder":"","value":"","readonly":"","min":"","max":"","required":"","condOption":"","condValue":"","scorable":"","product":"","price":""}]
+OK,
+        mode: 1
+        
+};
+    document.addEventListener("DOMContentLoaded", () => {
+        formBuilderLibrary.attachToElement(myOptions);
+
+        
+    });
+    
+    /**
+     * Show a modal with a form to input questionnaire ideas.
+     */
+    function showQuestionnairePrompt() {
+       console.log('hi!');
+    }
+
+    
+    /**
+     * Fetches image assets and displays them in a modal.
+     */
+    function imageAsset() {
+        alert('hi!')
+    }
+
+</script>
+    </head>
+    <body>
+
+        <div id="mikform"></div>
+    </body>
+</html>
