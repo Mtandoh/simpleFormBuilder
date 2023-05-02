@@ -1,60 +1,76 @@
 
 // Custom JavaScript Library for Drag & Drop Form Builder
-const formBuilderLibrary = (function () {
+const formBuilderLibrary = (function (options) {
+
+    //to prevent multiple ajax calls
+    var elementOptionsAjax = {};
+    var mathRe = /\s*{.*?}\s*/g;
 
     // Public API functions
     return {
-        /**
-         * Initialize the drag and drop plugin.
-         */
-        formBuilder : function () {
-            const $this = $(this);
-            $this.empty();
-
-            const formica = getFormicaHTML();
-            const menu = getMenuHTML();
-
-            $this.addClass("row formized");
-            $this.append(formica + menu);
-
-            attachEventListeners($this);
-        },
-
-
-
-        /**
-         * Renders elements from a JSON array.
-         * @param {Array} json - The JSON array to render elements from.
-         * @param {number} mode - The rendering mode (2 or 3).
-         * @returns {string | undefined} The rendered elements, or undefined if mode is not 2.
-         */
-        renderForm: function(json, mode) {
-            if (!Array.isArray(json) || typeof mode !== "number") {
-                return;
-            }
-
-            $(this).empty();
-            let outDiv = "";
-
-            json.forEach((element) => {
-                let outType;
-                if (mode === 3) {
-                    outType = check_type(element, mode);
-                } else {
-                    outType = check_type(element, 2);
+        // Export the formBuilder function to the library's public API
+        attachToElement: function (element,displayType) {
+            const $elem = $(element);
+            $mainDiv = $elem;
+            if ($elem.length) {
+                if(displayType ==='formBuilder') {
+                    formBuilder($elem);
+                }else{
+                    renderForm($elem)
                 }
-                outDiv += outType;
-            });
-
-            if (mode === 2) {
-                return outDiv;
-            } else {
-                $(this).append(outDiv);
             }
-        },
+        }
 
     }
     // Private utility functions
+
+    /**
+     * Initialize the drag and drop plugin.
+     */
+     function formBuilder ($elem) {
+        $elem.empty();
+
+        const formica = getFormicaHTML();
+        const menu = getMenuHTML();
+
+        $elem.addClass("row formized");
+        $elem.append(formica + menu);
+
+        attachEventListeners($elem);
+    }
+
+
+
+    /**
+     * Renders elements from a JSON array.
+     * @param {Array} json - The JSON array to render elements from.
+     * @param {number} mode - The rendering mode (2 or 3).
+     * @returns {string | undefined} The rendered elements, or undefined if mode is not 2.
+     */
+    function renderForm(json, mode) {
+        if (!Array.isArray(json) || typeof mode !== "number") {
+            return;
+        }
+
+        $(this).empty();
+        let outDiv = "";
+
+        json.forEach((element) => {
+            let outType;
+            if (mode === 3) {
+                outType = checkType(element, mode);
+            } else {
+                outType = checkType(element, 2);
+            }
+            outDiv += outType;
+        });
+
+        if (mode === 2) {
+            return outDiv;
+        } else {
+            $(this).append(outDiv);
+        }
+    }
 
     /**
      * Get the Formica HTML string.
@@ -112,14 +128,14 @@ const formBuilderLibrary = (function () {
      * @param {jQuery} $container The container element.
      */
     function attachEventListeners($container) {
-        $container.on("hover", ".del-button", handleDelButtonHover);
-        $container.on("click", "#promptBtn", prompt);
-        $container.on("click", "#templatesBtn", templates);
-        $container.on("click", "#imageAssetBtn", image_asset);
-        $container.on("click", "#resetBtn", reset);
-        $container.on("click", "#newFormBtn", clear_name_page_upload);
-        $container.on("click", "#saveBtn", save);
 
+        $container.on("hover", ".del-button", handleDelButtonHover);
+        $container.on("click", "#promptBtn", showQuestionnairePrompt);
+       // $container.on("click", "#templatesBtn", templates);
+        $container.on("click", "#imageAssetBtn", imageAsset);
+        $container.on("click", "#resetBtn", resetForm);
+        $container.on("click", "#newFormBtn", clearNamePageUpload);
+        $container.on("click", "#saveBtn", saveFormData);
         $(".btn").draggable({
             cursor: "move",
             revert: "invalid",
@@ -133,9 +149,25 @@ const formBuilderLibrary = (function () {
                 draggedItem = ui.item;
             },
             receive: function (event, ui) {
-                outType = check_type(draggedItem, 1);
+                outType = checkType(draggedItem, 1);
                 $(draggedItem).replaceWith(outType);
             }
+        });
+
+        // Add event delegation for action elements here
+        $container.on("click", ".toggle-form", function(event) {
+            const target = $(this);
+            editElement(target.data("id"), target.data("elementtype"));
+        });
+
+        $container.on("click", ".copy-button", function(event) {
+            const target = $(this);
+            copyElement(target.data("id"));
+        });
+
+        $container.on("click", ".del-button", function(event) {
+            const target = $(this);
+            deleteFormElement(target.data("id"));
         });
     }
 
@@ -161,21 +193,16 @@ const formBuilderLibrary = (function () {
       <span id="history_span_${id}"></span>
     </label>
   `;
-
         const fieldActions = `
     <div class="pull-right">
-      <a class="toggle-form btn glyphicon glyphicon-pencil" title="Edit"></a>
-      <a class="copy-button btn glyphicon glyphicon-duplicate" title="Copy"></a>
-      <a class="del-button btn delete-confirm" title="Remove Element">×</a>
+      <a class="toggle-form btn glyphicon glyphicon-pencil" data-id="${id}" data-elementType="${dataType}" title="Edit"></a>
+      <a class="copy-button btn glyphicon glyphicon-duplicate" data-id="${id}" data-elementType="${dataType}" title="Copy"></a>
+      <a class="del-button btn delete-confirm" data-id="${id}" data-elementType="${dataType}" title="Remove Element">×</a>
     </div>
   `;
 
         const actionsElement = document.createElement('div');
         actionsElement.innerHTML = fieldActions;
-
-        actionsElement.querySelector('.toggle-form').addEventListener('click', () => editor(id, dataType));
-        actionsElement.querySelector('.copy-button').addEventListener('click', () => copy(id));
-        actionsElement.querySelector('.del-button').addEventListener('click', () => delete_form_element(id));
 
         return {
             fieldLabelElement: fieldLabel,
@@ -191,14 +218,11 @@ function getAttrs(DOMelement) {
     });
     return obj;
 }
-var counter = 100;
-var outOptions = '';
 
-//to prevent multiple ajax calls
-var element_options_ajax = [];
+
 
 //gpt 4 start
-function checkType(elementType, mode, vanco, fieldLabel, fieldActions) {
+function checkType(elementType, mode) {
     let outType;
     let elementId = elementType.name || '';
     let dataType = elementType.type || '';
@@ -215,41 +239,60 @@ function checkType(elementType, mode, vanco, fieldLabel, fieldActions) {
     let defaultValue = elementType.defaultValue || '';
     let condValue = elementType.condValue || '';
     let condOption = elementType.condOption || '';
-    let autoFill = elementType.autoFill || '';
     let price = elementType.price || '';
     let product = elementType.product || '';
     let condChildOption = elementType.condChildOption || '';
     let tableType = elementType.tableType || '';
 
     if (mode === 1) {
-        vanco += 1;
+        counter = Math.floor(Math.random() * (1e13 - 1e12) + 1e12);
         dataType = elementType.attr('data-type');
-        elementId = 'v' + vanco;
+        elementId = 'v' + counter;
         className = elementType.attr('data-class');
     }
+    const {fieldLabelElement , fieldActionsElement} = generateFieldLabelAndActions(elementId, dataType);
 
-    const fieldBuilder = createFieldBuilder(dataType, elementId, label, elementType);
-    const actions = (mode === 1 || mode === 3) ? createAction(elementId, dataType) : '';
+    const fieldBuilder = createFieldBuilder(dataType, elementId, label,fieldLabelElement);
+    const actions = (mode === 1 || mode === 3) ? createAction(elementId, dataType,fieldActionsElement) : '';
 
-    outType = generateOutput(dataType, elementId, elementType, mode, label, defaultValue, placeholder, condOption, condValue, autoFill, demographic, className, required, readonly, min, max, value, product);
-
+    outType = generateOutput({
+        dataType: dataType,
+        elementId: elementId,
+        elementType: elementType,
+        mode: mode,
+        label: label,
+        fieldBuilder: fieldBuilder,
+        actions: actions,
+        defaultValue: defaultValue,
+        placeholder: placeholder,
+        condOption: condOption,
+        condValue: condValue,
+        demographic: demographic,
+        className: className,
+        required: required,
+        readonly: readonly,
+        min: min,
+        max: max,
+        value: value,
+        product: product
+    });
     return outType;
 
-    function createFieldBuilder(dataType, elementId, label = 'Text Field', elementType = null) {
-        if (dataType === 'paragraph' || dataType === 'header') {
+    function createFieldBuilder(elementType, elementId, label,fieldLabel) {
+        if (elementType === 'paragraph' || elementType === 'header') {
             return fieldLabel.replace(/field_repIIDD/g, elementId)
-                .replace(/Text Field/g, dataType)
+                .replace(/Text Field/g, elementType)
                 .replace(/repIIDD/g, elementId);
-        } else if (elementType && dataType === 'hidden') {
-            return `<label id="field_${elementId}" for="${elementId}" class="fb-repType-Label formzone pull-left ${required} form-hidden"><span id="label_span_${elementId}">${label}</span><span id="history_span_${elementId}"></span></label>`;
+        } else if (elementType === 'hidden') {
+            return `<label id="field_${elementId}" for="${elementId}" class="fb-repType-Label formzone pull-left ${required} form-hidden"><span id="label_span_${elementId}">${label !== '' ? label : elementType}</span><span id="history_span_${elementId}"></span></label>`;
         } else {
             return fieldLabel.replace(/repIIDD/g, elementId)
-                .replace(/Text Field/g, dataType);
+                .replace(/Text Field/g, label !== '' ? label : elementType);
         }
     }
 
-    function createAction(elementId, dataType) {
-        return fieldActions.replace(/vanco/g, elementId)
+    function createAction(elementId, dataType,fieldActionsElement) {
+        return fieldActionsElement.replace(/counter/g, elementId)
             .replace(/data_type/g, `'${dataType}'`);
     }
 }
@@ -263,11 +306,12 @@ function generateOutput(options) {
         elementType,
         mode,
         label,
+        fieldBuilder,
+        actions,
         defaultValue,
         placeholder,
         condOption,
         condValue,
-        autoFill,
         demographic,
         className,
         required,
@@ -316,7 +360,8 @@ function generateOutput(options) {
  * @param {Object} options - The options for the input field.
  */
 function generateInputType(options) {
-    let {dataType, elementId, label, defaultValue, placeholder, demographic, condOption, condValue, autoFill, className, required, readonly, min, max, value, product} = options;
+    let {dataType, elementId, label, fieldBuilder,
+        actions,defaultValue, placeholder, demographic, condOption, condValue, autoFill, className, required, readonly, min, max, value, product} = options;
 
     let currency = '';
     let money = '';
@@ -346,7 +391,8 @@ function generateInputType(options) {
     }
 
     function getLogTypeFromJwt() {
-        return JSON.parse(atob(jwt.split('.')[1]))['logType'];
+        //todo find away of bringing jwt. You can just copy the cookie
+      //  return JSON.parse(atob(jwt.split('.')[1]))['logType'];
     }
 
     function replaceSpecialChars(str) {
@@ -373,7 +419,6 @@ function generateTextareaType(options) {
         demographic,
         conditionalOption,
         conditionalValue,
-        autoFillValue,
         className,
         required,
         readonly,
@@ -387,13 +432,13 @@ function generateTextareaType(options) {
     const formattedValue = value.replace(/~~/g, '\n');
 
     return `
-    <div class="${className}" data-label="${label}" data-demographic="${demographic}" data-value="${defaultValue}" data-placeholder="${formattedPlaceholder}" data-cond-option="${conditionalOption}" data-cond-value="${conditionalValue}" data-auto-fill="${autoFillValue}" data-type="textarea" id="main${elementId}">
+    <div class="${className}" data-label="${label}" data-demographic="${demographic}" data-value="${defaultValue}" data-placeholder="${formattedPlaceholder}" data-cond-option="${conditionalOption}" data-cond-value="${conditionalValue}" data-type="textarea" id="main${elementId}">
       ${fieldBuilder}${actions}<br>
       <textarea ${required} ${readonly} data-max="${max}" class="form-control formzone pipe" name="${elementId}" placeholder="${formattedPlaceholder}" id="${elementId}">${formattedValue}</textarea>
     </div>`;
 }
 
-function generateButtonTemplate(options) {
+function generateButtonType(options) {
     const {
         elementId,
         label,
@@ -401,14 +446,13 @@ function generateButtonTemplate(options) {
         placeholder,
         condOption,
         condValue,
-        autoFill,
         className,
         actions,
         fieldBuilder,
     } = options;
 
     return `
-        <div class="${className}" data-label="${label}" data-value="${defaultValue}" data-placeholder="${placeholder}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-auto-fill="${autoFill}" data-type="button" id="main${elementId}">
+        <div class="${className}" data-label="${label}" data-value="${defaultValue}" data-placeholder="${placeholder}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-type="button" id="main${elementId}">
             ${actions}<br>
             <button type="button" class="form-control formzone btn-primary btn btn-sm" name="${elementId}" id="${elementId}">
                 ${fieldBuilder}
@@ -425,21 +469,18 @@ function generatePictureType(options) {
         required = false,
         readonly = false,
         max = '',
-        value = ''
+        value = '',
+        fieldBuilder,
+        actions,
     } = options;
-
-    // Sanitize and validate the inputs as needed
-    const sanitizedLabel = label.replace(/<[^>]*>/g, ''); // Example: removing HTML tags from the label
 
     const requiredAttribute = required ? 'required' : '';
     const readonlyAttribute = readonly ? 'readonly' : '';
 
     const output = `
-        <div class="${className}" data-label="${sanitizedLabel}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-type="picture" id="main${elementId}">
-            <label id="field_${elementId}" for="${elementId}" class="fb-repType-Label formzone pull-left ${requiredAttribute}">
-                <span id="label_span_${elementId}">${sanitizedLabel}</span>
-                <span id="history_span_${elementId}"></span>
-            </label>
+        <div class="${className}" data-label="${label}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-type="picture" id="main${elementId}">
+            ${fieldBuilder}
+            ${actions}
             <input type="hidden" class="form-control formzone" name="${elementId}" id="${elementId}" value="${value}">
             <input ${requiredAttribute} type="file" ${readonlyAttribute} data-max="${max}" class="form-control formzone js-image-upload" accept="image/*" name="u___${elementId}" id="u___${elementId}" value="${value}" capture="environment">
             <div class="js-image-container" id="img${elementId}"></div>
@@ -450,11 +491,21 @@ function generatePictureType(options) {
 }
 
 function generateDatalistType(options) {
-    const { elementId, label, demographic, condOption, condValue, autoFill, className, required, elementType } = options;
+    const { elementId, label, demographic, condOption,mode, condValue, className, required, elementType,
+        fieldBuilder,
+        actions,} = options;
 
-    let output = `<div class='${className}' data-label='${label}' data-demographic='${demographic}' data-cond-option='${condOption}' data-cond-value='${condValue}' data-auto-fill='${autoFill}' data-type='datalist' id='main${elementId}'>${createFieldBuilder('datalist', elementId, label)}${createAction(elementId, 'datalist')}<br>`;
+    let output = `<div class='${className}' data-label='${label}' data-demographic='${demographic}' data-cond-option='${condOption}' data-cond-value='${condValue}' data-type='datalist' id='main${elementId}'>${fieldBuilder}${actions}<br>`;
 
-    if (isValidUrl(elementType.url)) {
+    if (mode === 1) {
+        elementType.value = [
+            { value: "option-1", label: "Option 1" },
+            { value: "option-2", label: "Option 2" },
+            { value: "option-3", label: "Option 3" }
+        ];
+    }
+
+    if (validURL(elementType.url)) {
         fetchElementOptions(elementId, elementType.url)
             .then((options) => {
                 elementOptionsAjax[elementId] = options;
@@ -502,7 +553,8 @@ function fetchElementOptions(elementId, url) {
 
 function generateSelectType(options) {
     const {
-        elementId, label, demographic, condChildOption, condOption, condValue, autoFill, className, required, readonly, mode, elementType
+        elementId, label, demographic, condChildOption, condOption, condValue, className, required, readonly, mode, elementType, fieldBuilder,
+        actions,
     } = options;
 
     const mainDiv = document.createElement('div');
@@ -512,12 +564,16 @@ function generateSelectType(options) {
     mainDiv.dataset.condChildOption = condChildOption;
     mainDiv.dataset.condOption = condOption;
     mainDiv.dataset.condValue = condValue;
-    mainDiv.dataset.autoFill = autoFill;
     mainDiv.dataset.type = "select";
     mainDiv.id = "main" + elementId;
 
-    const fieldBuilder = createFieldBuilder('select', elementId, label);
-    mainDiv.appendChild(fieldBuilder);
+    const fieldBuilderDiv = document.createElement("div");
+    fieldBuilderDiv.innerHTML = fieldBuilder;
+    mainDiv.appendChild(fieldBuilderDiv);
+
+    const actionsDiv = document.createElement("div");
+    actionsDiv.innerHTML = actions;
+    mainDiv.appendChild(actionsDiv);
 
     const selectElement = document.createElement('select');
     selectElement.className = "form-control pipe";
@@ -538,9 +594,9 @@ function generateSelectType(options) {
     }
     if (mode === 1) {
         elementType.value = [
-            { value: "option-1", text: "Option 1" },
-            { value: "option-2", text: "Option 2" },
-            { value: "option-3", text: "Option 3" }
+            { value: "option-1", label: "Option 1" },
+            { value: "option-2", label: "Option 2" },
+            { value: "option-3", label: "Option 3" }
         ];
     }
     for (const option of elementType.value) {
@@ -554,14 +610,15 @@ function generateSelectType(options) {
 
     mainDiv.appendChild(selectElement);
 
-    return mainDiv;
+    return (document.createElement('div').appendChild(mainDiv)).outerHTML;
 }
 function generateCheckboxType(options) {
-    const { elementId, label, demographic, condChildOption, condOption, condValue, autoFill, className, readonly, mode, elementType } = options;
+    const { elementId, label, demographic, condChildOption, condOption, condValue, className, readonly, mode, elementType, fieldBuilder,
+        actions, } = options;
     let output = '';
     let disabled = readonly ? 'disabled' : '';
 
-    output = `<div class="${className}" data-label="${label}" data-demographic="${demographic}" data-cond-child-option="${condChildOption}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-auto_fill="${autoFill}" data-type="checkbox" id="main${elementId}">${createFieldBuilder('checkbox', elementId, label)}${createAction(elementId, 'checkbox')}<br>`;
+    output = `<div class="${className}" data-label="${label}" data-demographic="${demographic}" data-cond-child-option="${condChildOption}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-type="checkbox" id="main${elementId}">${fieldBuilder}${actions}<br>`;
     output += `<div id="${elementId}">`;
 
     if (mode === 1) {
@@ -589,7 +646,7 @@ function generateDefaultCheckboxes(elementId, options = ['Option 1', 'Option 2',
     return defaultCheckboxes;
 }
 
-function generateRadioButtonsHTML(options) {
+function generateRadioType(options) {
     const {
         elementId,
         label,
@@ -597,74 +654,73 @@ function generateRadioButtonsHTML(options) {
         condChildOption,
         condOption,
         condValue,
-        autoFill,
         className,
         required,
         readonly,
-        useDefaultOptions,
-        elementType
+        mode,
+        elementType,
+        fieldBuilder,
+        actions,
     } = options;
 
     let output = '';
 
-    output = `<div class="${className}" data-label="${label}" data-demographic="${demographic}" data-cond-child-option="${condChildOption}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-auto_fill="${autoFill}" data-type="radio" id="main${elementId}"><div id="${elementId}">`;
+    output = `<div class="${className}" data-label="${label}" data-demographic="${demographic}" data-cond-child-option="${condChildOption}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-type="radio" id="main${elementId}">
+            ${fieldBuilder}
+            ${actions}
+            <br>
+                <div id="${elementId}">`;
 
-    if (useDefaultOptions) {
-        const defaultOptions = [
+    if (mode === 1) {
+        elementType.value = [
             { value: 'Option 1', label: 'Option 1' },
             { value: 'Option 2', label: 'Option 2' },
             { value: 'Option 3', label: 'Option 3' },
         ];
 
-        for (let option of defaultOptions) {
-            output += `<div class="radio"><label><input ${required ? 'required' : ''} type="radio" ${readonly ? 'readonly disabled' : ''} value="${option.value}" name="${elementId}">${option.label}</label></div>`;
-        }
-    } else {
+    }
         for (let option of elementType.value) {
             let selected = option.selected ? 'checked' : '';
-            let tempValue = option.value;
-
-            output += `<div class="radio"><label><input ${required ? 'required' : ''} type="radio" ${selected} ${readonly ? 'readonly disabled' : ''} data-cond-show_on="${option.show_on}" value="${tempValue}" name="${elementId}">${option.label}</label></div>`;
+            output += `<div class="radio"><label><input ${required ? 'required' : ''} type="radio" ${selected} ${readonly ? 'readonly disabled' : ''} data-cond-show_on="${option.show_on}" value="${option.value}" name="${elementId}">${option.label}</label></div>`;
         }
-    }
+
 
     output += '</div></div>';
 
     return output;
 }
 
-/**
- * Generates the markup for a paragraph element.
- *
- * @param {string} elementId - The element ID.
- * @param {string} label - The label text.
- * @param {string} condOption - The conditional option.
- * @param {string} condValue - The conditional value.
- * @param {string} className - The CSS class name.
- * @returns {string} The generated markup.
- */
-function generateParagraphType(elementId, label, condOption, condValue, className) {
-    const fieldBuilder = createFieldBuilder('paragraph', elementId, label);
-    const actions = createAction(elementId, 'paragraph');
 
-    const output = `<div class="${className}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-label="${label}" data-type="paragraph" id="main${elementId}">${fieldBuilder.replace(/<(\/)?label/g, '<$1p>')}${actions}<br><br><br></div>`;
-    return output;
+function generateParagraphType(options) {
+    const {
+        elementId,
+        label,
+        condOption,
+        condValue,
+        className,
+        fieldBuilder,
+        actions,
+    } = options;
+
+
+    return `<div class="${className}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-label="${label}" data-type="paragraph" id="main${elementId}">${fieldBuilder}${actions}<br><br><br></div>`;
 }
+//.replace(/<(\/)?label/g, '<$1p>')
+//.replace(/<(\/)?label/g, '<$1h3>')
 
-/**
- * Generates the markup for a header element.
- *
- * @param {string} elementId - The element ID.
- * @param {string} label - The label text.
- * @param {string} className - The CSS class name.
- * @returns {string} The generated markup.
- */
-function generateHeaderType(elementId, label, className) {
-    const fieldBuilder = createFieldBuilder('header', elementId, label);
-    const actions = createAction(elementId, 'header');
+function generateHeaderType(options) {
+    const {
+        elementId,
+        label,
+        condOption,
+        condValue,
+        className,
+        fieldBuilder,
+        actions,
+    } = options;
 
-    const output = `<div class="${className}" data-label="${label}" id="main${elementId}">${fieldBuilder.replace(/<(\/)?label/g, '<$1h3>')}${actions}<br><br><br></div>`;
-    return output;
+
+    return `<div class="${className}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-label="${label}" id="main${elementId}">${fieldBuilder}${actions}<br><br><br></div>`;
 }
 /**
  * Generate the HTML for a table element.
@@ -676,20 +732,51 @@ function generateHeaderType(elementId, label, className) {
  * @param {boolean} options.autoFill - Whether the table should be auto-filled.
  * @param {string} options.className - The class name for the table element.
  * @param {Object} options.elementType - The type of the table element.
- * @param {string} fieldLabel - The field label template.
- * @param {string} v - The value to replace in the field label template.
+ * @param {string} fieldBuilder - The field label template.
+ * @param {string} actions - The value to replace in the field label template.
  * @param {number} mode - The mode for creating the table.
  * @returns {string} The generated HTML for the table element.
  */
-function generateTableHtml({ elementId, label, condOption, condValue, autoFill, className, elementType }, fieldLabel, v, mode) {
-    let output = `<div data-type="table" data-label="${label}" class="${className}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-auto-fill="${autoFill}" id="main${elementId}">`;
-    output += fieldLabel.replace(/label/g, 'h4').replace(/repIIDD/g, elementId).replace(/fb-repType-Label/g, 'panel-body') + v;
+function generateTableType(options) {
+        let {
+            elementId,
+            label,
+            demographic,
+            condChildOption,
+            condOption,
+            condValue,
+            className,
+            required,
+            readonly,
+            mode,
+            elementType,
+            fieldBuilder,
+            actions,
+        } = options;
+    let output = `<div data-type="table" data-label="${label}" class="${className}" data-cond-option="${condOption}" data-cond-value="${condValue}" id="main${elementId}">`;
+    output += fieldBuilder.replace(/repIIDD/g, elementId).replace(/fb-repType-Label/g, 'panel-body') + actions+'<br>';
 
     if (mode === 1) {
-        output += createTable(4, 3, elementId);
-    } else {
-        output += createTable(elementType.rows.length, elementType.columns.length, elementId, elementType.rows, elementType.columns, elementType.value, elementType.table_type, elementType);
+        elementType = {
+            id: 'tableId',
+            columns: [
+                {"name": "option 1"},
+                {"name": "option 2"},
+                {"name": "option 3"},
+                {"name": "option 4"}
+            ],
+            rows: [
+                {"name": "option 1", "value": "option-1"},
+                {"name": "option 2", "value": "option-2"},
+                {"name": "option 3", "value": "option-3"},
+                {"name": "option 4", "value": "option-4"}
+            ],
+            tableType: 'Text Area',
+            values:[]
+        };
     }
+    output += createTable({rows:elementType.rows.length, cols:elementType.columns.length, id:elementId, rowsData:elementType.rows, colsData:elementType.columns, values:elementType.values, tableType:elementType.tableType, elementType});
+
     output += '</div>';
 
     return output;
@@ -724,13 +811,13 @@ function createTable(options) {
         table.appendChild(createTableRow(options, i));
     }
 
-    return table;
+    return (document.createElement('div').appendChild(table)).outerHTML;
+   // return ;
 }
 
 function createTableHead(options) {
     const thead = document.createElement('thead');
     const tr = document.createElement('tr');
-
     for (let j = 0; j < options.cols; j++) {
         const cell = document.createElement('th');
         cell.id = `${options.id}_0_${j}`;
@@ -762,8 +849,28 @@ function createTableCell(options, i, j) {
 
     if (j === 0) {
         cell.textContent = options.rowsData[i].name;
+        cell.setAttribute("data-value", options.rowsData[i].value);
     } else {
         // Fill the cell with the appropriate input element
+        switch (options.tableType){
+            case 'Text':
+            case 'Number':
+            case 'Checkbox':
+            case 'Radio':
+                cell.innerHTML =`<input type="${options.tableType}" value="" name="">`
+                break;
+            case 'Text Area':
+                cell.innerHTML = `<textarea name=""></textarea>`
+                break;
+            case 'Dropdown':
+                cell.innerHTML =  `<select name="">
+                                        <option disabled="" value="">-- select an option --</option>
+                                        <option value="option-1" data-cond-show-on="">Option 1</option>
+                                        <option value="option-2" data-cond-show-on="">Option 2</option>
+                                        <option value="option-3" data-cond-show-on="">Option 3</option>
+                                     </select>`
+                break;
+        }
     }
 
     return cell;
@@ -780,19 +887,15 @@ function createTableCell(options, i, j) {
  * @param {string} dataType - The type of the target HTML element (e.g., 'select', 'checkbox', 'radio', or 'table').
  */
 function editElement(elementId, dataType) {
-    var element = document.getElementById(elementId);
-    var formattedElement = '';
+    let element = document.getElementById(elementId);
+    let formattedElement = '';
+    let mainElement = document.getElementById('main' + elementId);
 
     if (element) {
-        if (dataType === 'select' || dataType === 'checkbox' || dataType === 'radio'|| dataType === 'table') {
-            editForOptions(elementId, dataType);
-        }
-
-        var mainElement = document.getElementById('main' + elementId);
         formattedElement = mainElement.getAttribute("data-label");
-
-        element.replaceWith(fieldEdit(elementId, dataType, formattedElement));
-        var conditionalOption = mainElement.getAttribute("data-cond-option");
+        generateFieldEdit(elementId, dataType, formattedElement);
+        element.remove();
+        let conditionalOption = mainElement.getAttribute("data-cond-option");
 
         if (conditionalOption) {
             updateOption(elementId, conditionalOption);
@@ -800,16 +903,18 @@ function editElement(elementId, dataType) {
 
         // Replace with vanilla JavaScript implementation if sortable library is used
         // document.querySelector(".sortable-options").sortable();
-        createTributeValues();
+        $( ".sortable-options" ).sortable();
+        //todo create_tribute_values
+        //createTributeValues();
     } else {
         var labelSpan = document.getElementById('label_span_' + elementId);
         if (labelSpan) {
             labelSpan.remove();
         }
-
-        var mainElement = document.getElementById('main' + elementId);
         if (mainElement) {
-            mainElement.replaceWith(checkType(lodod(elementId)[0], 3));
+            mainElement.insertAdjacentHTML('afterend', checkType(convertInputToJson(elementId)[0], 3));
+            mainElement.remove();
+
         }
     }
 }
@@ -819,27 +924,28 @@ function editElement(elementId, dataType) {
  *
  * @param {string} [label='Option 3'] - The label for the new option.
  * @param {string} [value='Option 3'] - The value for the new option.
- * @param {string} something - The identifier for the element to append the option to.
+ * @param {string} fieldId - The identifier for the element to append the option to.
  */
-function addOption(label = 'Option 3', value = 'Option 3', something) {
-    if (typeof something !== 'string') {
-        throw new TypeError('The "something" argument must be a string.');
+function addOption(label = 'Option 3', value = 'Option 3', fieldId) {
+    if (typeof fieldId !== 'string') {
+        throw new TypeError('The "fieldId" argument must be a string.');
     }
 
-    const ele = $(something);
+    const ele = $(fieldId);
     let output = '<li class="ui-sortable-handle">';
 
-    if (something.includes('#rl_')) {
-        output += `<input style="display:table-cell; width:90%" type="text" class="option-label" value="${label}" name="select-optionR" placeholder="Label">`;
-    } else if (something.includes('#cl_')) {
-        output += `<input type="text" class="option-label" value="${label}" name="select-optionC" placeholder="Label">` +
-            `<input type="text" class="option-label" value="${value}" name="select-optionCv" placeholder="Value/placeholder">` +
-            `<input type="text" class="option-label" value="" name="select-optionC_filter" placeholder="show On Filter">`;
+    if (fieldId.includes('#rl_')) {
+        output += `<input type="text" class="option-label" value="${label}" name="select-optionRowName" placeholder="Label">
+            <input type="text" class="option-label" value="${value}" name="select-optionRowValue" placeholder="Value/placeholder">
+            <input type="text" class="option-label" value="" name="select-optionR_filter" placeholder="show On Filter">`;
+    } else if (fieldId.includes('#cl_')) {
+        output += `<input type="radio" class="option-selected" value="false" name="selected-option" placeholder="">
+                    <input type="text" style="display:table-cell; width:60%"  class="option-label" value="${label}" name="select-optionC" placeholder="Label">`;
     } else {
-        output += `<input type="radio" class="option-selected" value="false" name="selected-option" placeholder="">` +
-            `<input type="text" class="option-label" value="${label}" name="select-option" placeholder="Label">` +
-            `<input type="text" class="option-value" value="${value}" name="select-value" placeholder="value">` +
-            `<input type="text" class="option-filter" value="" name="select-filter" placeholder="show On Filter">`;
+        output += `<input type="radio" class="option-selected" value="false" name="selected-option" placeholder="">
+            <input type="text" class="option-label" value="${label}" name="select-option" placeholder="Label">
+            <input type="text" class="option-value" value="${value}" name="select-value" placeholder="value">
+            <input type="text" class="option-filter" value="" name="select-filter" placeholder="show On Filter">`;
     }
 
     const listItem = $(output);
@@ -851,6 +957,59 @@ function addOption(label = 'Option 3', value = 'Option 3', something) {
     listItem.append(removeButton);
     ele.append(listItem);
 }
+    /**
+     * Modifies the row and column inputs based on the selected table type.
+     * Hides and disables option-value inputs for Text, Text Area, and Number types.
+     * Shows and enables option-value inputs for Radio and Checkbox types.
+     * Creates and manages dropdown options for the Dropdown type.
+     *
+     * @param {string} tableType - The selected table type (Text, Text Area, Number, Radio, Checkbox, Dropdown).
+     * @param {string} fieldId - The identifier for the parent element containing the Trow and table-dropdown-values divs.
+     */
+    function modifyRowColumn(tableType, fieldId) {
+        const parentElement = $(`#div_${fieldId}`);
+        const TrowDiv = parentElement.find(".Trow");
+        const optionValueInputs = TrowDiv.find("input.option-value");
+        const tableDropdownValuesDiv = parentElement.find(".table-dropdown-values");
+
+        // Function to enable or disable elements based on the condition
+        function toggleElements(elements, condition) {
+            elements.prop("disabled", !condition);
+            condition ? elements.show() : elements.hide();
+        }
+
+        // Function to create and add a new dropdown option
+        function createDropdownOption() {
+            const newFieldId = `dropdown-value-${fieldId}-${tableDropdownValuesDiv.children().length}`;
+            const newOption = addOption(`Option ${tableDropdownValuesDiv.children().length + 1}`, `Option ${tableDropdownValuesDiv.children().length + 1}`, newFieldId);
+            tableDropdownValuesDiv.append(newOption);
+        }
+
+        if (tableType === "Text" || tableType === "Text Area" || tableType === "Number") {
+            toggleElements(optionValueInputs, false);
+            toggleElements(tableDropdownValuesDiv, false);
+        } else if (tableType === "Radio" || tableType === "Checkbox") {
+            toggleElements(optionValueInputs, true);
+            toggleElements(tableDropdownValuesDiv, false);
+        } else if (tableType === "Dropdown") {
+            toggleElements(optionValueInputs, false);
+            tableDropdownValuesDiv.empty();
+            const dropdownLabel = $("<label>").text("Dropdown Values:");
+            tableDropdownValuesDiv.append(dropdownLabel);
+
+            // Create and add initial 3 dropdown options
+            for (let i = 0; i < 3; i++) {
+                createDropdownOption();
+            }
+
+            // Add the "add-opt" button for adding more dropdown options
+            const addButton = $('<a class="add add-opt btn btn-default pull-right" id="add-dropdown-value">Add Dropdown Value +</a>');
+            addButton.on('click', createDropdownOption);
+            tableDropdownValuesDiv.append(addButton);
+
+            toggleElements(tableDropdownValuesDiv, true);
+        }
+    }
 
 /**
  * Updates the inner HTML of the label span element with the given ID suffix and new content.
@@ -872,16 +1031,40 @@ function updateLabelSpan(idSuffix, newContent) {
  * @param {string} fieldId - The ID of the field to edit.
  * @param {string} fieldType - The type of the field to edit.
  * @param {string} [fieldValue=''] - The initial value of the field.
- * @returns {string} The HTML string for the edit form.
  */
 function generateFieldEdit(fieldId, fieldType, fieldValue = '') {
     // Declare and initialize variables
     const mainElement = $(`#main${fieldId}`);
     const fieldClass = mainElement.attr('class').trim();
+    const labelText = mainElement.attr("data-label");
+    const hide = mainElement.attr("data-hide");
+    const demographic = mainElement.attr("data-demographic");
 
-    let fieldEdit = `<div id="div_${fieldId}" class="edit_template"> ... </div>`;
+    let fieldEdit = `<div id="div_${fieldId}" class="edit_template"></div>`;
+
+    // Append the fieldEdit to the mainElement
+    mainElement.append(fieldEdit);
+
+
 
     // Generate additional field edit HTML based on the field type
+    let fieldContent = `
+        <br><label class="pull-left">Label</label>
+        <textarea name="label" data-elementType="${fieldType}" data-id="${fieldId}" placeholder="Label" class="fld-label form-control tribute">${labelText}</textarea><br>
+        <br><label class="pull-left">Class (Separate multiple classes by space)</label>
+        <input name="class" type="text" data-elementType="${fieldType}" data-id="${fieldId}" value="${fieldClass}" placeholder="class" class="fld-label form-control"><br>
+        <label class="pull-left">Hide from Client Chart: </label>
+        <input name="hide" type="checkbox" data-elementType="${fieldType}" data-id="${fieldId}" ${hide} class="checkbox"><br>
+        <label class="pull-left">Demograhpic Variable: </label>
+        <input name="demographic" value="Checked" type="checkbox" data-elementType="${fieldType}" data-id="${fieldId}" ${demographic} class="checkbox"><br>
+        <div id="logic_${fieldId}" class="edit_template">
+            <br><label class="pull-left">Display Logic</label>
+            <select name="form_logic" class="fld-label form-control">
+                ${fieldCondition(fieldId)}
+            </select>
+            <br>
+            <div id="logic_option">
+            <br>`;
     switch (fieldType) {
         case 'text':
         case 'date':
@@ -890,30 +1073,70 @@ function generateFieldEdit(fieldId, fieldType, fieldValue = '') {
         case 'picture':
         case 'hidden':
         case 'range':
-            fieldEdit += generateTextInput(fieldId, fieldType, mainElement);
+            fieldContent += generateTextInput(fieldId, fieldType, mainElement);
             break;
         case 'select':
         case 'checkbox':
         case 'radio':
-            fieldEdit += generateSelectInput(fieldId, fieldType, mainElement);
+            fieldContent += generateSelectInput(fieldId, fieldType, mainElement);
             break;
         case 'table':
-            fieldEdit += generateTableInput(fieldId, fieldType, mainElement);
+            fieldContent += generateTableInput(fieldId, fieldType, mainElement);
             break;
         case 'payment':
-            fieldEdit += generatePaymentInput(fieldId, fieldType, mainElement);
+            fieldContent += generatePaymentInput(fieldId, fieldType, mainElement);
             break;
         case 'datalist':
-            fieldEdit += generateDataListInput(fieldId, fieldType, mainElement);
+            fieldContent += generateDataListInput(fieldId, fieldType, mainElement);
             break;
         case 'conjoint':
-            fieldEdit += generateConjointInput(fieldId, fieldType, mainElement);
+            fieldContent += generateConjointInput(fieldId, fieldType, mainElement);
             break;
         default:
             console.warn(`Unsupported field type: ${fieldType}`);
     }
 
-    return fieldEdit;
+    // Add the fieldContent into the edit_template div
+    const divFieldId = $(`#div_${fieldId}`);
+    divFieldId.html(fieldContent);
+
+    // Attach event listeners using event delegation
+    divFieldId.on('keyup', 'textarea[name="label"]', function() {
+        updateLabelSpan(fieldId, $(this).val());
+    });
+
+    divFieldId.on('change', 'select[name="form_logic"]', function() {
+        updateOption(fieldId, $(this).val());
+    });
+
+    switch (fieldType) {
+        case 'select':
+        case 'checkbox':
+        case 'radio':
+            // Add event listener to the add-opt button
+            document.getElementById(`add-opt-${fieldId}`).addEventListener('click', function () {
+                addOption('label', 'value', `#ol_${fieldId}`);
+            });
+            // Add event listener to the optionsCSV button
+            document.getElementById(`optionsCSV-${fieldId}`).addEventListener('click', function () {
+                optionsCSV(fieldId);
+            });
+            break;
+        case 'table':
+            // Add event listener to the add-col button
+            document.getElementById(`add-col-${fieldId}`).addEventListener('click', function () {
+                addOption('label', 'value', `#cl_${fieldId}`);
+            });
+            // Add event listener to the add-row button
+            document.getElementById(`add-row-${fieldId}`).addEventListener('click', function () {
+                addOption('label', 'value', `#rl_${fieldId}`);
+            });
+            // Add event listener to tableType
+            document.getElementById(`tableType_${fieldId}`).addEventListener('change', function () {
+                modifyRowColumn(this.value, `${fieldId}`);
+            });
+            break;
+    }
 }
 
 /**
@@ -981,7 +1204,13 @@ function generateSelectInput(fieldId, fieldType, mainElement) {
     const isChecked = fieldClass.includes('inline') ? 'checked' : '';
 
     // Replace this with the actual options HTML string
-    const optionsHtml = '<option>Option 1</option><option>Option 2</option>';
+    const {
+        optionValues,
+        outOptionsRows,
+        outOptionsColumns
+    } = editForOptions(fieldId, fieldType);
+
+
 
     return `
     ${fieldType === 'checkbox' || fieldType === 'radio' ? `
@@ -992,13 +1221,13 @@ function generateSelectInput(fieldId, fieldType, mainElement) {
     <input type="checkbox" class="fld-required" min="1" name="fld_score" value="1">
     <br>
     <div class="form-group field-options">
-      <label class="false-label">Options <button onclick="optionsCSV('${fieldId}');" class="btn btn-default"> Upload through CSV</button></label>
+      <label class="false-label">Options <button  id="optionsCSV-${fieldId}" class="btn btn-default"> Upload through CSV</button></label>
       <div class="sortable-options-wrap">
         <ol class="sortable-options ui-sortable" id="ol_${fieldId}">
-          ${optionsHtml}
+          ${outOptionsRows}
         </ol>
         <div class="option-actions">
-          <a class="add add-opt btn btn-default pull-right" onclick="add_option('label','value','#ol_${fieldId}')">Add Option +</a>
+          <a class="add add-opt btn btn-default pull-right" id="add-opt-${fieldId}">Add Option +</a>
         </div>
       </div>
     </div>
@@ -1017,16 +1246,24 @@ function generateTableInput(fieldId, fieldType, mainElement) {
     const tableRow = ""; // Replace with the code to generate table rows
     const tableCol = ""; // Replace with the code to generate table columns
 
+    // Replace this with the actual options HTML string
+    const {
+        optionValues,
+        outOptionsRows,
+        outOptionsColumns
+    } = editForOptions(fieldId, fieldType);
+
     return `
     <div class="row">
       <div class="col-sm-4"><label>Type of Table:</label></div>
       <div class="col-sm-8">
-        <select name="table_type" class="form-control">
-          <option ${tableTypeLabel === "number" ? "selected" : ""} value="number">Number</option>
-          <option ${tableTypeLabel === "dropdown" ? "selected" : ""} value="dropdown">Dropdown</option>
+        <select name="table_type" id="tableType_${fieldId}" class="form-control">
+          <option ${tableTypeLabel === "Dropdown" ? "selected" : ""} value="Dropdown">Dropdown</option>
           <option ${tableTypeLabel === "Radio" ? "selected" : ""} value="Radio">Radio</option>
-          <option ${tableTypeLabel === "text" ? "selected" : ""} value="text">Text</option>
-          <option ${tableTypeLabel === "text area" ? "selected" : ""} value="text area">Text Area</option>
+          <option ${tableTypeLabel === "Checkbox" ? "selected" : ""} value="Checkbox">Checkbox</option>
+          <option ${tableTypeLabel === "Text" ? "selected" : ""} value="Text">Text</option>
+          <option ${tableTypeLabel === "Number" ? "selected" : ""} value="Number">Number</option>
+          <option ${tableTypeLabel === "Text Area" ? "selected" : ""} value="Text Area">Text Area</option>
         </select>
       </div>
     </div>
@@ -1038,27 +1275,31 @@ function generateTableInput(fieldId, fieldType, mainElement) {
       <label class="false-label">Options:</label>
       <div class="sortable-options-wrap">
         <label class="false-label">Rows &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;</label>
-        <div id="Trow">
+        <div class="Trow">
           <ol class="sortable-options ui-sortable" id="rl_${fieldId}">
-            ${tableRow}
+            ${outOptionsRows}
           </ol>
         </div>
         <div class="option-actions">
-          <a class="add add-opt btn btn-default pull-right" onclick="add_option('label','value','#rl_${fieldId}')">Add Option +</a>
+          <a class="add add-opt btn btn-default pull-right" id="add-row-${fieldId}">Add Row Option +</a>
         </div>
         <br>
+        <div class="table-dropdown-values">
+        
+        </div>
         <label class="false-label">Columns &nbsp; &nbsp;</label>
-        <div id="Tcol">
+        <div class="Tcol">
           <ol class="sortable-options ui-sortable" id="cl_${fieldId}">
-            ${tableCol}
+            ${outOptionsColumns}
           </ol>
         </div>
         <div class="option-actions">
-          <a class="add add-opt btn btn-default pull-right" onclick="add_option('label','value','#cl_${fieldId}')">Add Option +</a>
+          <a class="add add-opt btn btn-default pull-right" id="add-col-${fieldId}">Add Column Option +</a>
         </div>
       </div>
     </div>
   `;
+
 }
 
 /**
@@ -1121,9 +1362,12 @@ function generateConjointInput(fieldId, fieldType, mainElement) {
  */
 function convertInputToJson(jsonDivId) {
     const json = [];
-    let label, fieldType, fieldName, rows, columns, tableType, className, defaultValue;
-    let placeholder, required, values, demographic;
-    let scorable, max, min, autoFill, condOption, condValue, product, price;
+    let values= [];
+    let rows= [{name: 'option 1', value: 'option-1'}];
+    let columns = [{name: 'option 1'}];
+    let label, fieldType, fieldName, tableType, className, defaultValue;
+    let placeholder, required , demographic;
+    let scorable, max, min, condOption, condValue, product, price,selectedOption;
 
     $(`#div_${jsonDivId} :input`).each(function () {
         const input = $(this);
@@ -1133,8 +1377,8 @@ function convertInputToJson(jsonDivId) {
         switch (inputName) {
             case "label":
                 label = inputValue;
-                fieldType = input.attr("nonly");
-                fieldName = input.attr("vanshe");
+                fieldType = input.attr("data-elementType");
+                fieldName = input.attr("data-id");
                 break;
             case "placeholder":
                 placeholder = inputValue;
@@ -1142,15 +1386,27 @@ function convertInputToJson(jsonDivId) {
             case "select-option":
                 const isSelected = input.prev().is(':checked');
                 const optionValue = input.next().val();
-                values.push({ "label": inputValue, "selected": isSelected, "value": optionValue });
-                jokingbird = 1;
+                const show_on = input.next().next().val();
+                var parentTrow = input.closest('.Trow');
+                var parentTcol = input.closest('.Tcol');
+
+                if (parentTrow.length > 0) {
+                    rows.push({ "name": inputValue, "selected": isSelected, "value": optionValue,"show_on":show_on});
+                } else if (parentTcol.length > 0) {
+                    columns.push({ "name": inputValue});
+                }else{
+                    values.push({ "label": inputValue, "selected": isSelected, "value": optionValue,"show_on":show_on});
+                }
+
+                selectedOption = 1;
                 break;
             case "select-optionR":
-                rows.push({ "name": inputValue });
+                const optionValueR = input.next().val();
+                const show_onR = input.next().next().val();
+                rows.push({ "name": inputValue , "value": optionValueR ,"show_on":show_onR});
                 break;
             case "select-optionC":
-                const columnValue = input.next().val();
-                columns.push({ "name": inputValue, "value": columnValue });
+                columns.push({ "name": inputValue});
                 break;
             case "fld_score":
                 scorable = inputValue;
@@ -1174,9 +1430,6 @@ function convertInputToJson(jsonDivId) {
                     demographic = inputValue;
                 }
                 break;
-            case "field_auto":
-                autoFill = inputValue.replace(/main/g, '');
-                break;
             case "form_logic":
                 condOption = inputValue;
                 break;
@@ -1199,10 +1452,9 @@ function convertInputToJson(jsonDivId) {
         }
     });
 
-    if (jokingbird !== 1) {
+    if (selectedOption !== 1) {
         values = '';
     }
-
     json.push({
         "type": fieldType,
         "label": label,
@@ -1210,7 +1462,7 @@ function convertInputToJson(jsonDivId) {
         "rows": rows,
         "demographic": demographic,
         "columns": columns,
-        "table_type": tableType,
+        "tableType": tableType,
         "class": className,
         "default_value": defaultValue,
         "choices": [],
@@ -1222,7 +1474,6 @@ function convertInputToJson(jsonDivId) {
         "required": required,
         "cond_option": condOption,
         "cond_value": condValue,
-        "auto_fill": autoFill,
         "scorable": scorable,
         "product": product,
         "price": price
@@ -1288,16 +1539,16 @@ function copyElement(elementId) {
     let formData;
 
     if (element) {
-        formData = generateFormJson(`#main${elementId}`).form_elements[0];
+        formData = generateFormJson(`#main${elementId}`).formElements[0];
     } else {
-        formData = loadData(elementId)[0];
+        formData = convertInputToJson(elementId)[0];
     }
 
-    const uniqueCounter =  counter += 1;
+    const uniqueCounter =  Math.floor(Math.random() * (1e13 - 1e12) + 1e12);
     formData.name = `v${uniqueCounter}`;
 
     const newElement = checkType(formData, 3);
-    element.insertAdjacentHTML('afterend', newElement);
+    element.parentElement.insertAdjacentHTML('afterend', newElement);
 }
 
 /**
@@ -1310,7 +1561,7 @@ function generateFormJson(formId = '') {
     document.querySelectorAll('.main-form' + formId).forEach((element) => {
         let optionValues = [];
         let label = '';
-        let classy = '';
+        let className = '';
         let defaultValue = '';
         let condValue = element.dataset.condValue;
         let condOption = element.dataset.condOption;
@@ -1329,6 +1580,7 @@ function generateFormJson(formId = '') {
 
         const tag = element.getAttribute('data-type');
         const id = element.getAttribute('id').split('main')[1];
+        className = element.getAttribute('class');
 
         switch (tag) {
             case 'date':
@@ -1376,7 +1628,7 @@ function generateFormJson(formId = '') {
             rows: rows,
             columns: columns,
             tableType: tableType,
-            class: classy,
+            class: className,
             defaultValue: defaultValue,
             choices: [],
             placeholder: placeholder,
@@ -1397,19 +1649,24 @@ function generateFormJson(formId = '') {
     const forms = {};
     const settings = [];
 
-    settings.push(
-        {
-            formNames: document.getElementById('form_names').value,
-        },
-        {
-            formUpload: document.getElementById('form_upload').checked
-                ? document.getElementById('form_upload').value
-                : '0',
-        },
-        {
-            formQc: document.getElementById('page_number').value,
-        },
-    );
+    try{
+        settings.push(
+            {
+                formNames: document.getElementById('form_names').value,
+            },
+            {
+                formUpload: document.getElementById('form_upload').checked
+                    ? document.getElementById('form_upload').value
+                    : '0',
+            },
+            {
+                formQc: document.getElementById('page_number').value,
+            },
+        );
+    }catch (e) {
+        
+    }
+    
 
     forms.formSettings = settings;
     forms.formElements = json;
@@ -1524,77 +1781,91 @@ function pushToCookie(formElements, callback) {
         console.error("Error storing form data in the cookie: ", error);
     }
 }
-/**
- * Generates and returns output options for the given element ID and tag type.
- *
- * @param {string} id - The ID of the element.
- * @param {string} tag - The type of the tag (e.g., 'select', 'checkbox', 'radio', 'table').
- * @returns {Object} An object containing the generated HTML elements.
- */
-function editForOptions(id, tag) {
-    const optionValues = [];
-    const element = $(`#${id}`);
+    function editForOptions(id, tag) {
+        const optionValues = {
+            rows: [],
+            columns: []
+        };
+        const element = $(`#${id}`);
+        let tableType = '';
 
-    if (tag === 'select') {
-        element.children('option').each(function() {
-            if (!$(this).prop('disabled')) {
-                const selected = $(this).is(':selected');
-                optionValues.push({
-                    label: $(this).text(),
-                    selected: selected,
-                    value: $(this).val()
-                });
-            }
-        });
-    } else if (tag === 'checkbox' || tag === 'radio') {
-        element.find('input').each(function() {
-            const selected = $(this).is(':checked');
-            optionValues.push({
-                label: $(this).parent().text(),
-                selected: selected,
-                value: $(this).val()
-            });
-        });
-    } else if (tag === 'table') {
-        const tableRows = element.find('tr');
-        const numRows = tableRows.length;
-        const numCols = tableRows.first().children('td').length;
-
-        for (let i = 0; i < numRows / 2; i++) {
-            for (let j = 0; j < numCols; j++) {
-                const cell = $(`#${id}_${i}_${j}`);
-                if (i === 0 && j !== 0) {
-                    optionValues.columns.push({
-                        name: cell.text(),
-                        value: cell.data('value')
-                    });
-                } else if (j === 0 && i !== 0) {
+        if (tag === 'select') {
+            element.children('option').each(function() {
+                if (!$(this).prop('disabled')) {
+                    const selected = $(this).is(':selected');
                     optionValues.rows.push({
-                        name: cell.text()
+                        label: $(this).text(),
+                        selected: selected,
+                        show_on: $(this).attr('data-cond-show_on'),
+                        value: $(this).val()
                     });
                 }
-            }
+            });
+        } else if (tag === 'checkbox' || tag === 'radio') {
+            element.find('input').each(function() {
+                const selected = $(this).is(':checked');
+                optionValues.rows.push({
+                    label: $(this).parent().text(),
+                    selected: selected,
+                    show_on: $(this).attr('data-cond-show_on'),
+                    value: $(this).val()
+                });
+            });
+        } else if (tag === 'table') {
+            tableType = element.attr("data-tabletype");
+            element.find('tr').each(function(rowIndex) {
+                $(this).find('td, th').each(function(colIndex) {
+                    const cell = $(this);
+                    if (rowIndex === 0 && colIndex !== 0) {
+                        optionValues.columns.push({
+                            label: cell.text()
+                        });
+                    } else if (colIndex === 0 && rowIndex !== 0) {
+                        optionValues.rows.push({
+                            label: cell.text(),
+                            value: cell.attr( 'data-value' )
+                        });
+                    }
+                });
+            });
         }
+
+        // Generate the output HTML elements.
+        const filterDatalist = updateFilterOption(id);
+
+        const generateOptions = (options, isColumn) => {
+
+            return options.map(option => {
+                const checked = option.selected ? 'checked' : '';
+                const showOn = option.show_on ? option.show_on : '';
+                const hideOptionValue = (tableType === "Text" || tableType === "Text Area" || tableType === "Number") ? 'style="display:none;"' : '';
+                const disableOptionValue = (tableType === "Text" || tableType === "Text Area" || tableType === "Number") ? 'disabled' : '';
+                return `
+                  <li class="ui-sortable-handle">
+                    <input type="radio" class="selected-option" value="false" name="selected-option" ${checked}>
+                  
+                    <input type="text" class="option-label" value="${option.label}" name="select-option" placeholder="Label">
+                    ${!isColumn ? `
+                    <input type="text" class="option-value" value="${option.value}" name="select-value" placeholder="Value" ${disableOptionValue} ${hideOptionValue}>
+                    <input class="option-filter" list="filter-list-${id}" value="${showOn}" name="select-filter" id="filter-${id}" placeholder="show On Filter">
+                        <datalist id="filter-list-${id}">
+                        ${filterDatalist}
+                        </datalist>` : ''}
+                    <!-- Additional HTML elements can be added here -->
+                    <a onclick="$(this).parent().remove();" class="remove btn" title="Remove Element">×</a>
+                  </li>`;
+            }).join('');
+        };
+
+        const outOptionsRows = generateOptions(optionValues.rows, false);
+        const outOptionsColumns = generateOptions(optionValues.columns,true);
+
+        return {
+            optionValues: optionValues,
+            outOptionsRows: outOptionsRows,
+            outOptionsColumns: outOptionsColumns
+        };
     }
-
-    // Generate the output HTML elements.
-    const outOptions = optionValues.map(option => {
-        const checked = option.selected ? 'checked' : '';
-        return `
-      <li class="ui-sortable-handle">
-        <input type="radio" class="selected-option" value="false" name="selected-option" ${checked}>
-        <input type="text" class="option-label" value="${option.label}" name="select-option" placeholder="Label">
-        <input type="text" class="option-value" value="${option.value}" name="select-value" placeholder="Value">
-        <!-- Additional HTML elements can be added here -->
-        <a onclick="$(this).parent().remove();" class="remove btn" title="Remove Element">×</a>
-      </li>`;
-    }).join('');
-
-    return {
-        optionValues: optionValues,
-        outOptions: outOptions
-    };
-}
 
 /**
  * Generates an HTML string of options for a select element based on the provided field ID and the elements in the main-form class.
@@ -1624,6 +1895,139 @@ function fieldCondition(fieldId) {
     });
     return optionsHtml;
 }
+
+    /**
+     * Update the option based on the element ID and conditional option.
+     * @param {string} elementId - The element ID to update the option for.
+     * @param {string} conditionalOption - The conditional option to use for updating the option.
+     */
+    function updateFilterOption(elementId) {
+        let optionValues = [];
+
+        $('.main-form').each(function () {
+            const currentElement = $(this);
+            const tag = currentElement.attr('data-type');
+            const currentElementID = currentElement.attr('id').replace('main','');
+            if(currentElementID === elementId){
+                return;
+            }
+            const labelText = $('#label_span_'+currentElementID).html()
+
+            if (tag === 'select') {
+                currentElement.find('option').each(function() {
+                    if ($(this).prop('disabled') !== true) {
+                        optionValues.push({"label": `${labelText} - ${$(this).text()}`, "value":`${currentElementID} - ${$(this).val()}`});
+                    }
+
+                });
+            } else if (tag === 'checkbox' || tag === 'radio') {
+                currentElement.find('input').each(function() {
+                    optionValues.push({"label":`${labelText} - ${$(this).parent().text()}`,"value":`${currentElementID} - ${$(this).val()}`});
+                });
+            }
+        });
+        return optionValues.map(option => {
+            return `
+            <option value="${option.value}">${option.label}</option>`;
+        }).join('');
+
+    }
+
+    /**
+     * Update the option based on the element ID and conditional option.
+     * @param {string} elementId - The element ID to update the option for.
+     * @param {string} conditionalOption - The conditional option to use for updating the option.
+     */
+    function updateOption(elementId, conditionalOption) {
+        let optionsCond = '';
+        const mainElement = $('#main' + elementId);
+        const condValue = mainElement.attr("data-cond-value");
+        const logicOption = $('#logic_option');
+
+        $('.main-form').each(function () {
+            const currentElement = $(this);
+            const tag = currentElement.attr('data-type');
+
+            if (tag === 'select') {
+                optionsCond = handleSelect(optionsCond, currentElement, conditionalOption, condValue);
+            } else if (tag === 'checkbox' || tag === 'radio') {
+                optionsCond = handleCheckboxRadio(optionsCond, currentElement, conditionalOption, condValue);
+            }
+        });
+
+        const myClassInput = $(`[data-id="${elementId}"][name="class"]`);
+        let myClassInputValue = myClassInput.val();
+        const hasConditionalClass = myClassInput.hasClass('conditional');
+        const hasInverseConditionalClass = myClassInput.hasClass('con_inverse_ditional');
+        let checkInverse = '';
+
+        if (conditionalOption === '') {
+            if (hasConditionalClass) {
+                myClassInput.removeClass('conditional');
+            }
+            if (hasInverseConditionalClass) {
+                myClassInput.removeClass('con_inverse_ditional');
+            }
+        } else {
+            if (!hasConditionalClass && !hasInverseConditionalClass) {
+                myClassInput.addClass('conditional');
+            }
+            if (hasInverseConditionalClass) {
+                checkInverse = 'checked';
+            }
+        }
+
+        logicOption.html(`
+        <select class="form-control" name="logic_option">${optionsCond}</select>
+        <br>
+        <input type="checkbox" ${checkInverse} id="sss"> Inverse
+        <br>
+    `);
+    }
+
+    /**
+     * Handle select elements.
+     * @param {string} optionsCond - The current options string.
+     * @param {object} currentElement - The current jQuery element.
+     * @param {string} conditionalOption - The conditional option to use for updating the option.
+     * @param {string} condValue - The conditional value from the main element.
+     * @returns {string} - The updated options string.
+     */
+    function handleSelect(optionsCond, currentElement, conditionalOption, condValue) {
+        const id = currentElement.children('select').attr('id');
+
+        if (id === conditionalOption) {
+            currentElement.children('option').each(function () {
+                const optionElement = $(this);
+                const selected = condValue === optionElement.val() ? 'selected' : '';
+                optionsCond += `<option ${selected} value="${optionElement.val()}">${optionElement.text()}</option>`;
+            });
+        }
+
+        return optionsCond;
+    }
+
+    /**
+     * Handle checkbox and radio elements.
+     * @param {string} optionsCond - The current options string.
+     * @param {object} currentElement - The current jQuery element.
+     * @param {string} conditionalOption - The conditional option to use for updating the option.
+     * @param {string} condValue - The conditional value from the main element.
+     * @returns {string} - The updated options string.
+     */
+    function handleCheckboxRadio(optionsCond, currentElement, conditionalOption, condValue) {
+        const id = currentElement.children('label').attr('for');
+
+        if (id === conditionalOption) {
+            currentElement.find('input').each(function () {
+                const inputElement = $(this);
+                const selected = condValue === inputElement.val() ? 'selected' : '';
+                optionsCond += `<option ${selected} value="${inputElement.val()}">${inputElement.parent().text()}</option>`;
+            });
+        }
+
+        return optionsCond;
+    }
 /**
  * Generates an HTML string for the product options in a payment field.
  * @returns {string} The HTML string for the product options.
@@ -1669,10 +2073,10 @@ function updateProductValue(value, parentId) {
 /**
  * Toggles the 'inline' class for the specified element based on the checked status of the inline checkbox.
  * @param {HTMLInputElement} inlineCheckbox - The checkbox used to toggle the 'inline' class.
- * @param {string} something - The attribute value to identify the target element.
+ * @param {string} fieldId - The attribute value to identify the target element.
  */
-function toggleInlineClass(inlineCheckbox, something) {
-    const myClassInput = $('[vanshe="' + something + '"][name="class"]');
+function toggleInlineClass(inlineCheckbox, fieldId) {
+    const myClassInput = $('[data-id="' + fieldId + '"][name="class"]');
     const myClassInputValue = myClassInput.val();
     const flag = myClassInputValue.includes('inline');
 
