@@ -3,21 +3,37 @@
 const formBuilderLibrary = (function (options) {
 
     //to prevent multiple ajax calls
-    var elementOptionsAjax = {};
-    var mathRe = /\s*{.*?}\s*/g;
+    var elementOptionsAJAX = {};
+    var mathRegExp = /\s*{.*?}\s*/g;
 
     // Public API functions
     return {
-        // Export the formBuilder function to the library's public API
-        attachToElement: function (element,displayType) {
-            const $elem = $(element);
-            $mainDiv = $elem;
-            if ($elem.length) {
-                if(displayType ==='formBuilder') {
-                    formBuilder($elem);
-                }else{
-                    renderForm($elem)
+        /**
+         * Attach the formBuilder or renderForm function to the given element.
+         * @param options
+         */
+        attachToElement: function (options) {
+            const {
+                initialFormData,
+                mode,
+                buttons,
+                eventHandlers,
+                formElement,
+                saveFormAction,
+            } = options;
+            options = options || {};
+            options.buttons = options.buttons || [];
+            options.eventHandlers = options.eventHandlers || {};
+            options.saveFormAction = options.saveFormAction || '';
+            options.initialFormData = options.initialFormData || [];
+            options.mode = options.mode || 0;
+            let elem = document.querySelector(options.formElement);
+            if (elem) {
+                if (options.mode === 1) {
+                    formBuilder(elem,options);
+                    elem = document.querySelector('ul.sfb-connected');
                 }
+                    renderForm(options.initialFormData,options.mode,elem);
             }
         }
 
@@ -26,50 +42,41 @@ const formBuilderLibrary = (function (options) {
 
     /**
      * Initialize the drag and drop plugin.
+     * @param {HTMLElement} elem - The DOM element to initialize the form builder on.
+     * @param options
      */
-     function formBuilder ($elem) {
-        $elem.empty();
+    function formBuilder(elem,options) {
 
         const formica = getFormicaHTML();
-        const menu = getMenuHTML();
+        const menu = getMenuHTML(options);
 
-        $elem.addClass("row formized");
-        $elem.append(formica + menu);
+        elem.classList.add("sfb-row", "sfb-formized");
+        elem.innerHTML = formica + menu;
 
-        attachEventListeners($elem);
+        attachEventListeners(elem,options);
     }
 
 
 
     /**
      * Renders elements from a JSON array.
-     * @param {Array} json - The JSON array to render elements from.
+     * @param {Array} jsons - The JSON array to render elements from.
      * @param {number} mode - The rendering mode (2 or 3).
+     * @param element
      * @returns {string | undefined} The rendered elements, or undefined if mode is not 2.
      */
-    function renderForm(json, mode) {
-        if (!Array.isArray(json) || typeof mode !== "number") {
+    function renderForm(jsons, mode, element) {
+        if (!Array.isArray(jsons) || typeof mode !== "number") {
             return;
         }
-
-        $(this).empty();
         let outDiv = "";
-
-        json.forEach((element) => {
-            let outType;
-            if (mode === 3) {
-                outType = checkType(element, mode);
-            } else {
-                outType = checkType(element, 2);
-            }
-            outDiv += outType;
+        jsons.forEach((json) => {
+            let outputType;
+            outputType = checkType(json, mode);
+            outDiv += outputType;
         });
 
-        if (mode === 2) {
-            return outDiv;
-        } else {
-            $(this).append(outDiv);
-        }
+            element.innerHTML = outDiv;
     }
 
     /**
@@ -77,8 +84,8 @@ const formBuilderLibrary = (function (options) {
      * @returns {string} Formica HTML string.
      */
     function getFormicaHTML() {
-        return `<div id="mainFormEdit" class="col-md-9 formica">
-      <ul class="connected"></ul>
+        return `<div id="mainFormEdit" class="sfb-col-md-9 sfb-formica">
+      <ul class="sfb-connected" data-content="Drag a field from the right to this area"></ul>
     </div>
   `;
     }
@@ -87,36 +94,39 @@ const formBuilderLibrary = (function (options) {
      * Get the Menu HTML string.
      * @returns {string} Menu HTML string.
      */
-    function getMenuHTML() {
+    function getMenuHTML(options) {
+
+        let customButtonsHTML = '';
+        options.buttons.forEach((button) => {
+            customButtonsHTML += `<button class="sfb-btn ${button.className}" id="${button.id}">${button.text}</button>`;
+        });
+
         return `
-        <div class="col-md-3">
+        <div class="sfb-col-md-2">
             <div id="FormEditItems">
-                <ul id="sortable1" class="connectedSortable">
-         <li class="btn btn-default btn-block" data-type="checkbox" data-class="main-form " data-index="15">Checkbox Group</li>
-        <li class="btn btn-default btn-block" data-type="radio" data-class="main-form " data-index="14">Radio Group</li>
-        <li class="btn btn-default btn-block" data-type="select" data-class="main-form " data-index="17">Select</li>
-        <li class="btn btn-default btn-block" data-type="datalist" data-class="main-form " data-index="27">Data List</li>
-        <li class="btn btn-default btn-block" data-type="text" data-class="main-form " data-index="1">Text Field</li>
-        <li class="btn btn-default btn-block" data-type="textarea" data-class="main-form " data-index="16">Text Area</li>
-        <li class="btn btn-default btn-block" data-type="date" data-class="main-form " data-index="9">Date Field</li>
-        <li class="btn btn-default btn-block" data-type="number" data-class="main-form " data-index="2">Number</li>
-        <li class="btn btn-default btn-block" data-type="range" data-class="main-form " data-index="23">Range</li>
-        <li class="btn btn-default btn-block" data-type="hidden" data-class="main-form " data-index="28">Hidden</li>
-        <li class="btn btn-default btn-block" data-type="paragraph" data-class="main-form " data-index="18">Paragraph</li>
-        <li class="btn btn-default btn-block" data-type="header" data-class="main-form " data-index="21">Header</li>
-        <li class="btn btn-default btn-block" data-type="picture" data-class="main-form " data-index="24">Picture</li>
-        <li class="btn btn-default btn-block" data-type="payment" data-class="main-form " data-index="25">Payment</li>
-        <li class="btn btn-default btn-block" data-type="conjoint" data-class="main-form" data-index="30">Conjoint</li>
-        <li class="btn btn-default btn-block" data-type="table" data-class="panel panel-default main-form " data-index="22">Table</li>
-        <li class="btn btn-default btn-block" data-type="button" data-class="main-form " data-index="29">Button</li>
+                <ul id="sortable1" class="sfb-connectedSortable">
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="checkbox" data-class="sfb-main-form " data-index="15">Checkbox Group</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="radio" data-class="sfb-main-form " data-index="14">Radio Group</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="select" data-class="sfb-main-form " data-index="17">Select</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="datalist" data-class="sfb-main-form " data-index="27">Data List</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="text" data-class="sfb-main-form " data-index="1">Text Field</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="textarea" data-class="sfb-main-form " data-index="16">Text Area</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="date" data-class="sfb-main-form " data-index="9">Date Field</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="number" data-class="sfb-main-form " data-index="2">Number</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="range" data-class="sfb-main-form " data-index="23">Range</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="hidden" data-class="sfb-main-form " data-index="28">Hidden</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="paragraph" data-class="sfb-main-form " data-index="18">Paragraph</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="header" data-class="sfb-main-form " data-index="21">Header</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="picture" data-class="sfb-main-form " data-index="24">Picture</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="payment" data-class="sfb-main-form " data-index="25">Payment</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="conjoint" data-class="sfb-main-form" data-index="30">Conjoint</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="table" data-class="sfb-panel sfb-panel-default sfb-main-form " data-index="22">Table</li>
+        <li class="sfb-btn sfb-btn-default sfb-btn-block sfb-input-drag-btn" data-type="button" data-class="sfb-main-form " data-index="29">Button</li>
                 </ul>
-                <div class="pull-right">
-                    <button class="btn btn-default" id="promptBtn">Prompt</button>
-                    <button class="btn btn-default" id="templatesBtn">Templates</button>
-                    <button class="btn btn-default" id="imageAssetBtn">Image Assets</button>
-                    <button class="btn btn-danger" id="resetBtn">Reset</button>
-                    <button class="btn btn-primary" id="newFormBtn">New Form</button>
-                    <button class="btn btn-success" id="saveBtn">Save</button>
+                <div class="sfb-pull-right">
+                    <button class="sfb-btn sfb-btn-danger"  id="resetBtn">Reset</button>
+                    <button class="sfb-btn sfb-btn-success" id="saveBtn">Save</button>
+                    ${customButtonsHTML}
                 </div>
             </div>
         </div>
@@ -125,59 +135,99 @@ const formBuilderLibrary = (function (options) {
 
     /**
      * Attach event listeners to the elements.
-     * @param {jQuery} $container The container element.
+     * @param {HTMLElement} container - The container element.
+     * @param options
      */
-    function attachEventListeners($container) {
+    function attachEventListeners(container,options) {
+        const containerID = container.getAttribute('id')
+        container.addEventListener("mouseover", handleDelButtonHover);
+        container.addEventListener("mouseout", handleDelButtonHover);
 
-        $container.on("hover", ".del-button", handleDelButtonHover);
-        $container.on("click", "#promptBtn", showQuestionnairePrompt);
-       // $container.on("click", "#templatesBtn", templates);
-        $container.on("click", "#imageAssetBtn", imageAsset);
-        $container.on("click", "#resetBtn", resetForm);
-        $container.on("click", "#newFormBtn", clearNamePageUpload);
-        $container.on("click", "#saveBtn", saveFormData);
-        $(".btn").draggable({
-            cursor: "move",
-            revert: "invalid",
-            helper: "clone",
-            connectToSortable: ".connected"
+        Object.keys(options.eventHandlers).forEach((eventId) => {
+            const handler = options.eventHandlers[eventId];
+            const element = container.querySelector(`#${eventId}`);
+            if (element) {
+                element.addEventListener('click', handler);
+            }
         });
-
-        $(".connected").sortable({
-            cursor: "move",
-            beforeStop: function (event, ui) {
-                draggedItem = ui.item;
-            },
-            receive: function (event, ui) {
-                outType = checkType(draggedItem, 1);
-                $(draggedItem).replaceWith(outType);
+        container.addEventListener("click", (event) => {
+            const target = event.target;
+            if (target.closest("#resetBtn")) {
+                resetForm(containerID);
+            } else if (target.closest("#saveBtn")) {
+                saveFormData(options.saveFormAction);
+            } else if (target.closest(".sfb-toggle-form")) {
+                const element = target.closest(".sfb-toggle-form");
+                editElement(element.dataset.id, element.dataset.elementtype);
+            } else if (target.closest(".sfb-copy-button")) {
+                const element = target.closest(".sfb-copy-button");
+                copyElement(element.dataset.id);
+            } else if (target.closest(".sfb-del-button")) {
+                const element = target.closest(".sfb-del-button");
+                deleteFormElement(element.dataset.id);
             }
         });
 
-        // Add event delegation for action elements here
-        $container.on("click", ".toggle-form", function(event) {
-            const target = $(this);
-            editElement(target.data("id"), target.data("elementtype"));
+        const btns = Array.from(container.querySelectorAll(".sfb-input-drag-btn"));
+        btns.forEach((btn) => {
+            btn.setAttribute('draggable', 'true');
         });
 
-        $container.on("click", ".copy-button", function(event) {
-            const target = $(this);
-            copyElement(target.data("id"));
+        // Initialize the draggable and sortable features
+        initializeDraggableAndSortable(container);
+    }
+
+    /**
+     * Initialize the draggable and sortable features for the elements in the container
+     * @param {HTMLElement} container - The container element.
+     */
+    function initializeDraggableAndSortable(container) {
+        let draggedItem = null;
+
+        const draggables = container.querySelectorAll(".sfb-input-drag-btn");
+        draggables.forEach((draggable) => {
+            draggable.addEventListener("dragstart", (event) => {
+                event.dataTransfer.setData("text/plain", "");
+                draggedItem = event.target;
+            });
         });
 
-        $container.on("click", ".del-button", function(event) {
-            const target = $(this);
-            deleteFormElement(target.data("id"));
+        const sortables = container.querySelectorAll(".sfb-connected");
+        sortables.forEach((sortable) => {
+            sortable.addEventListener("dragover", (event) => {
+                event.preventDefault();
+            });
+
+            sortable.addEventListener("drop", (event) => {
+                event.preventDefault();
+                const newItem = checkType({...draggedItem.dataset}, 1);
+                sortable.appendChild(createElementFromHTML(newItem));
+                draggedItem = null;
+            });
         });
+    }
+
+    function createElementFromHTML(htmlString) {
+        const div = document.createElement('div');
+        div.innerHTML = htmlString.trim();
+        return div.firstChild;
     }
 
     /**
      * Handle the hover event for the delete button.
-     * @param {Event} ev The event object.
+     * @param {Event} ev - The event object.
      */
     function handleDelButtonHover(ev) {
-        const container = $(this).parent().parent();
-        container.toggleClass("del-button_main-form_hover", ev.type === "mouseenter");
+        const target = ev.target;
+
+        if (target.classList.contains("sfb-del-button")) {
+            const container = target.parentElement.parentElement;
+            if (ev.type === "mouseover") {
+                container.classList.add("sfb-del-button_main-form_hover");
+            } else {
+                container.classList.remove("sfb-del-button_main-form_hover");
+            }
+        }
     }
 
     /**
@@ -188,16 +238,16 @@ const formBuilderLibrary = (function (options) {
      */
     function generateFieldLabelAndActions(id, dataType) {
         const fieldLabel = `
-    <label id="field_${id}" for="${id}" class="fb-repType-Label formzone pull-left">
+    <label id="field_${id}" for="${id}" class="sfb-fb-repType-Label sfb-formzone sfb-pull-left">
       <span id="label_span_${id}">Text Field</span>
       <span id="history_span_${id}"></span>
     </label>
   `;
         const fieldActions = `
-    <div class="pull-right">
-      <a class="toggle-form btn glyphicon glyphicon-pencil" data-id="${id}" data-elementType="${dataType}" title="Edit"></a>
-      <a class="copy-button btn glyphicon glyphicon-duplicate" data-id="${id}" data-elementType="${dataType}" title="Copy"></a>
-      <a class="del-button btn delete-confirm" data-id="${id}" data-elementType="${dataType}" title="Remove Element">×</a>
+    <div class="sfb-pull-right sfb-field-actions">
+      <a class="sfb-toggle-form sfb-btn glyphicon glyphicon-pencil" data-id="${id}" data-elementType="${dataType}" title="Edit"></a>
+      <a class="sfb-copy-button sfb-btn glyphicon glyphicon-duplicate" data-id="${id}" data-elementType="${dataType}" title="Copy"></a>
+      <a class="sfb-del-button sfb-btn sfb-delete-confirm" data-id="${id}" data-elementType="${dataType}" title="Remove Element">×</a>
     </div>
   `;
 
@@ -206,58 +256,52 @@ const formBuilderLibrary = (function (options) {
 
         return {
             fieldLabelElement: fieldLabel,
-            fieldActionsElement: actionsElement.outerHTML
+            fieldActionsElement: actionsElement.innerHTML
         };
     }
-function getAttrs(DOMelement) {
-    var obj = {};
-    $.each(DOMelement.attributes, function () {
-        if (this.specified) {
-            obj[this.name] = this.value;
-        }
-    });
-    return obj;
-}
 
-
-
-//gpt 4 start
+    /**
+     * Generates the output for an element based on its type and mode.
+     * @param {Object} elementType - The element type object with properties like name, type, label, etc.
+     * @param {number} mode - The mode for generating output (1, 2, or 3).
+     * @returns {string} The generated output for the element.
+     *
+     * @example
+     * const elementType = {
+     *   name: 'example',
+     *   type: 'text',
+     *   label: 'Example Label'
+     * };
+     * const output = checkType(elementType, 1);
+     */
 function checkType(elementType, mode) {
-    let outType;
-    let elementId = elementType.name || '';
+    let outputType;
+    let elementID = elementType.name || 'v' + Math.floor(Math.random() * (1e13 - 1e12) + 1e12);
     let dataType = elementType.type || '';
     let label = elementType.label || '';
     let required = elementType.required || '';
     let demographic = elementType.required || '';
     let className = elementType.class || '';
-    let inline = className.includes('inline') ? 'inline' : '';
     let placeholder = elementType.placeholder || '';
     let readonly = elementType.readonly || '';
     let min = elementType.min || '';
     let max = elementType.max || '';
     let value = elementType.value || '';
     let defaultValue = elementType.defaultValue || '';
-    let condValue = elementType.condValue || '';
-    let condOption = elementType.condOption || '';
+    let conditionalOption = elementType.conditionalOption || '';
+    let conditionalValue = elementType.conditionalValue || '';
     let price = elementType.price || '';
     let product = elementType.product || '';
-    let condChildOption = elementType.condChildOption || '';
+    let conditionalChildOption = elementType.conditionalChildOption || '';
     let tableType = elementType.tableType || '';
+    const {fieldLabelElement , fieldActionsElement} = generateFieldLabelAndActions(elementID, dataType);
 
-    if (mode === 1) {
-        counter = Math.floor(Math.random() * (1e13 - 1e12) + 1e12);
-        dataType = elementType.attr('data-type');
-        elementId = 'v' + counter;
-        className = elementType.attr('data-class');
-    }
-    const {fieldLabelElement , fieldActionsElement} = generateFieldLabelAndActions(elementId, dataType);
+    const fieldBuilder = createFieldBuilder(dataType, elementID, label,fieldLabelElement);
+    const actions = (mode === 1) ? createAction(elementID, dataType,fieldActionsElement) : '';
 
-    const fieldBuilder = createFieldBuilder(dataType, elementId, label,fieldLabelElement);
-    const actions = (mode === 1 || mode === 3) ? createAction(elementId, dataType,fieldActionsElement) : '';
-
-    outType = generateOutput({
+    outputType = generateOutput({
         dataType: dataType,
-        elementId: elementId,
+        elementID: elementID,
         elementType: elementType,
         mode: mode,
         label: label,
@@ -265,8 +309,9 @@ function checkType(elementType, mode) {
         actions: actions,
         defaultValue: defaultValue,
         placeholder: placeholder,
-        condOption: condOption,
-        condValue: condValue,
+        conditionalOption: conditionalOption,
+        conditionalValue: conditionalValue,
+        conditionalChildOption: conditionalChildOption,
         demographic: demographic,
         className: className,
         required: required,
@@ -276,33 +321,37 @@ function checkType(elementType, mode) {
         value: value,
         product: product
     });
-    return outType;
+    return outputType;
 
-    function createFieldBuilder(elementType, elementId, label,fieldLabel) {
+    function createFieldBuilder(elementType, elementID, label,fieldLabel) {
         if (elementType === 'paragraph' || elementType === 'header') {
-            return fieldLabel.replace(/field_repIIDD/g, elementId)
+            return fieldLabel.replace(/field_repIIDD/g, elementID)
                 .replace(/Text Field/g, elementType)
-                .replace(/repIIDD/g, elementId);
+                .replace(/repIIDD/g, elementID);
         } else if (elementType === 'hidden') {
-            return `<label id="field_${elementId}" for="${elementId}" class="fb-repType-Label formzone pull-left ${required} form-hidden"><span id="label_span_${elementId}">${label !== '' ? label : elementType}</span><span id="history_span_${elementId}"></span></label>`;
+            return `<label id="field_${elementID}" for="${elementID}" class="sfb-fb-repType-Label sfb-formzone sfb-pull-left ${required} sfb-form-hidden"><span id="label_span_${elementID}">${label !== '' ? label : elementType}</span><span id="history_span_${elementID}"></span></label>`;
         } else {
-            return fieldLabel.replace(/repIIDD/g, elementId)
+            return fieldLabel.replace(/repIIDD/g, elementID)
                 .replace(/Text Field/g, label !== '' ? label : elementType);
         }
     }
 
-    function createAction(elementId, dataType,fieldActionsElement) {
-        return fieldActionsElement.replace(/counter/g, elementId)
-            .replace(/data_type/g, `'${dataType}'`);
+    function createAction(elementID, dataType,fieldActionsElement) {
+        return fieldActionsElement.replace(/counter/g, elementID)
+            .replace(/dataType/g, `'${dataType}'`);
     }
 }
 
 
-// Function to generate the output based on dataType
+    /**
+     * Function to generate the output based on dataType.
+     * @param {Object} options - The options object containing dataType, elementID, elementType, mode, label, fieldBuilder, actions, defaultValue, placeholder, conditionalOption, conditionalValue, demographic, className, required, readonly, min, max, value, and product properties.
+     * @returns {string} The generated output.
+     */
 function generateOutput(options) {
     const {
         dataType,
-        elementId,
+        elementID,
         elementType,
         mode,
         label,
@@ -310,8 +359,8 @@ function generateOutput(options) {
         actions,
         defaultValue,
         placeholder,
-        condOption,
-        condValue,
+        conditionalOption,
+        conditionalValue,
         demographic,
         className,
         required,
@@ -353,27 +402,25 @@ function generateOutput(options) {
     return '';
 }
 
-// Functions to generate specific output types will be implemented here
-
 /**
  * Generates the HTML for an input field based on the given options.
  * @param {Object} options - The options for the input field.
  */
 function generateInputType(options) {
-    let {dataType, elementId, label, fieldBuilder,
-        actions,defaultValue, placeholder, demographic, condOption, condValue, autoFill, className, required, readonly, min, max, value, product} = options;
+    let {dataType, elementID, label, fieldBuilder,
+        actions,defaultValue, placeholder, demographic, conditionalOption, conditionalValue, className, required, readonly, min, max, value, product} = options;
 
     let currency = '';
     let money = '';
 
     switch(dataType) {
         case 'currency':
-            currency = '<span class="input-group-addon">&#8373;</span>';
-            money = 'class="input-group"';
+            currency = '<span class="sfb-input-group-addon">&#8373;</span>';
+            money = 'class="sfb-input-group"';
             break;
         case 'percentage':
-            currency = '<span class="input-group-addon">%</span>';
-            money = 'class="input-group"';
+            currency = '<span class="sfb-input-group-addon">%</span>';
+            money = 'class="sfb-input-group"';
             break;
     }
 
@@ -386,7 +433,7 @@ function generateInputType(options) {
     }
 
     let inputType = dataType;
-    if (getLogTypeFromJwt() === '3' && dataType === 'hidden' && elementId !== 'hidden_fallback') {
+    if (getLogTypeFromJwt() === '3' && dataType === 'hidden' && elementID !== 'hidden_fallback') {
         inputType = 'text';
     }
 
@@ -396,23 +443,23 @@ function generateInputType(options) {
     }
 
     function replaceSpecialChars(str) {
-        return str.replace(/~~/g, '\n').replace(mathRe, ' ');
+        return str.replace(/~~/g, '\n').replace(mathRegExp, ' ');
     }
 
     placeholder = replaceSpecialChars(placeholder);
     value = replaceSpecialChars(value);
 
     return `
-        <div ${money} class="${className}" data-label="${label}" data-demographic="${demographic}" data-value="${defaultValue}" data-placeholder="${placeholder}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-auto_fill="${autoFill}" data-type="${dataType}" id="main${elementId}">
+        <div ${money} class="${className}" data-label="${label}" data-demographic="${demographic}" data-value="${defaultValue}" data-placeholder="${placeholder}" data-conditionalOption="${conditionalOption}" data-conditionalValue="${conditionalValue}" data-type="${dataType}" id="main${elementID}">
             ${fieldBuilder}${actions}<br>
             ${currency}
-            <input ${rangeJs} step="${product}" ${required} min="${min}" max="${max}" type="${inputType}" ${readonly} class="form-control formzone pipe" placeholder="${placeholder}" name="${elementId}" id="${elementId}" value="${value}">${outputValue}
+            <input ${rangeJs} step="${product}" ${required} min="${min}" max="${max}" type="${inputType}" ${readonly} class="sfb-form-control sfb-formzone sfb-pipe" placeholder="${placeholder}" name="${elementID}" id="${elementID}" value="${value}">${outputValue}
         </div>`;
 }
 
 function generateTextareaType(options) {
     const {
-        elementId,
+        elementID,
         label,
         defaultValue,
         placeholder,
@@ -428,43 +475,43 @@ function generateTextareaType(options) {
         actions,
     } = options;
 
-    const formattedPlaceholder = placeholder.replace(/~~/g, '\n').replace(mathRe, ' ');
+    const formattedPlaceholder = placeholder.replace(/~~/g, '\n').replace(mathRegExp, ' ');
     const formattedValue = value.replace(/~~/g, '\n');
 
     return `
-    <div class="${className}" data-label="${label}" data-demographic="${demographic}" data-value="${defaultValue}" data-placeholder="${formattedPlaceholder}" data-cond-option="${conditionalOption}" data-cond-value="${conditionalValue}" data-type="textarea" id="main${elementId}">
+    <div class="${className}" data-label="${label}" data-demographic="${demographic}" data-value="${defaultValue}" data-placeholder="${formattedPlaceholder}" data-conditionalOption="${conditionalOption}" data-conditionalValue="${conditionalValue}" data-type="textarea" id="main${elementID}">
       ${fieldBuilder}${actions}<br>
-      <textarea ${required} ${readonly} data-max="${max}" class="form-control formzone pipe" name="${elementId}" placeholder="${formattedPlaceholder}" id="${elementId}">${formattedValue}</textarea>
+      <textarea ${required} ${readonly} data-max="${max}" class="sfb-form-control sfb-formzone sfb-pipe" name="${elementID}" placeholder="${formattedPlaceholder}" id="${elementID}">${formattedValue}</textarea>
     </div>`;
 }
 
 function generateButtonType(options) {
     const {
-        elementId,
+        elementID,
         label,
         defaultValue,
         placeholder,
-        condOption,
-        condValue,
+        conditionalOption,
+        conditionalValue,
         className,
         actions,
         fieldBuilder,
     } = options;
 
     return `
-        <div class="${className}" data-label="${label}" data-value="${defaultValue}" data-placeholder="${placeholder}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-type="button" id="main${elementId}">
+        <div class="${className}" data-label="${label}" data-value="${defaultValue}" data-placeholder="${placeholder}" data-conditionalOption="${conditionalOption}" data-conditionalValue="${conditionalValue}" data-type="button" id="main${elementID}">
             ${actions}<br>
-            <button type="button" class="form-control formzone btn-primary btn btn-sm" name="${elementId}" id="${elementId}">
+            <button type="button" class="sfb-form-control sfb-formzone sfb-btn-primary sfb-btn sfb-btn-sm" name="${elementID}" id="${elementID}">
                 ${fieldBuilder}
             </button>
         </div>`;
 }
 function generatePictureType(options) {
     const {
-        elementId,
+        elementID,
         label = '',
-        condOption = '',
-        condValue = '',
+        conditionalOption = '',
+        conditionalValue = '',
         className = '',
         required = false,
         readonly = false,
@@ -477,25 +524,23 @@ function generatePictureType(options) {
     const requiredAttribute = required ? 'required' : '';
     const readonlyAttribute = readonly ? 'readonly' : '';
 
-    const output = `
-        <div class="${className}" data-label="${label}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-type="picture" id="main${elementId}">
+    return `
+        <div class="${className}" data-label="${label}" data-conditionalOption="${conditionalOption}" data-conditionalValue="${conditionalValue}" data-type="picture" id="main${elementID}">
             ${fieldBuilder}
             ${actions}
-            <input type="hidden" class="form-control formzone" name="${elementId}" id="${elementId}" value="${value}">
-            <input ${requiredAttribute} type="file" ${readonlyAttribute} data-max="${max}" class="form-control formzone js-image-upload" accept="image/*" name="u___${elementId}" id="u___${elementId}" value="${value}" capture="environment">
-            <div class="js-image-container" id="img${elementId}"></div>
+            <input type="hidden" class="sfb-form-control sfb-formzone" name="${elementID}" id="${elementID}" value="${value}">
+            <input ${requiredAttribute} type="file" ${readonlyAttribute} data-max="${max}" class="sfb-form-control sfb-formzone sfb-js-image-upload" accept="image/*" name="u___${elementID}" id="u___${elementID}" value="${value}" capture="environment">
+            <div class="js-image-container" id="img${elementID}"></div>
         </div>
     `;
-
-    return output;
 }
 
 function generateDatalistType(options) {
-    const { elementId, label, demographic, condOption,mode, condValue, className, required, elementType,
+    const { elementID, label, demographic, conditionalOption,mode, conditionalValue, className, required, elementType,
         fieldBuilder,
         actions,} = options;
 
-    let output = `<div class='${className}' data-label='${label}' data-demographic='${demographic}' data-cond-option='${condOption}' data-cond-value='${condValue}' data-type='datalist' id='main${elementId}'>${fieldBuilder}${actions}<br>`;
+    let output = `<div class='${className}' data-label='${label}' data-demographic='${demographic}' data-conditionalOption='${conditionalOption}' data-conditionalValue='${conditionalValue}' data-type='datalist' id='main${elementID}'>${fieldBuilder}${actions}<br>`;
 
     if (mode === 1) {
         elementType.value = [
@@ -505,28 +550,28 @@ function generateDatalistType(options) {
         ];
     }
 
-    if (validURL(elementType.url)) {
-        fetchElementOptions(elementId, elementType.url)
+    if (validURL(elementType.defaultValue)) {
+        fetchElementOptions(elementID, elementType.defaultValue)
             .then((options) => {
-                elementOptionsAjax[elementId] = options;
-                buildDatalist(elementId, elementOptionsAjax, elementType.url);
+                elementOptionsAJAX[elementID] = options;
+                buildDatalist(elementID, elementOptionsAJAX, elementType.defaultValue);
             });
     } else {
-        elementOptionsAjax[elementId] = elementType.value;
+        elementOptionsAJAX[elementID] = elementType.value;
     }
 
     let dataList = '';
     if (typeof elementType.value !== 'object') {
         dataList = elementType.value;
     }
-    output += `<input autocomplete='off' ${required} list='${elementId}_list' class='form-control pipe formzone' name='${elementId}' id='${elementId}' value='${dataList}'>`;
-    output += `<datalist id='${elementId}_list'></datalist></div>`;
+    output += `<input autocomplete='off' ${required} list='${elementID}_list' class='sfb-form-control sfb-pipe sfb-formzone' name='${elementID}' id='${elementID}' value='${dataList}'>`;
+    output += `<datalist id='${elementID}_list'></datalist></div>`;
 
     return output;
 }
 
 
-function fetchElementOptions(elementId, url) {
+function fetchElementOptions(elementID, url) {
     const headers = {};
     if (jwt) {
         headers.Authorization = 'Basic ' + jwt;
@@ -553,7 +598,7 @@ function fetchElementOptions(elementId, url) {
 
 function generateSelectType(options) {
     const {
-        elementId, label, demographic, condChildOption, condOption, condValue, className, required, readonly, mode, elementType, fieldBuilder,
+        elementID, label, demographic, conditionalChildOption, conditionalOption, conditionalValue, className, required, readonly, mode, elementType, fieldBuilder,
         actions,
     } = options;
 
@@ -561,24 +606,19 @@ function generateSelectType(options) {
     mainDiv.className = className;
     mainDiv.dataset.label = label;
     mainDiv.dataset.demographic = demographic;
-    mainDiv.dataset.condChildOption = condChildOption;
-    mainDiv.dataset.condOption = condOption;
-    mainDiv.dataset.condValue = condValue;
+    mainDiv.dataset.conditionalchildoption = conditionalChildOption;
+    mainDiv.dataset.conditionalOption = conditionalOption;
+    mainDiv.dataset.conditionalvalue = conditionalValue;
     mainDiv.dataset.type = "select";
-    mainDiv.id = "main" + elementId;
+    mainDiv.id = "main" + elementID;
+    mainDiv.innerHTML += fieldBuilder;
 
-    const fieldBuilderDiv = document.createElement("div");
-    fieldBuilderDiv.innerHTML = fieldBuilder;
-    mainDiv.appendChild(fieldBuilderDiv);
-
-    const actionsDiv = document.createElement("div");
-    actionsDiv.innerHTML = actions;
-    mainDiv.appendChild(actionsDiv);
+    mainDiv.innerHTML += actions;
 
     const selectElement = document.createElement('select');
-    selectElement.className = "form-control pipe";
-    selectElement.name = elementId;
-    selectElement.id = elementId;
+    selectElement.className = "sfb-form-control sfb-pipe";
+    selectElement.name = elementID;
+    selectElement.id = elementID;
     if (required) selectElement.setAttribute('required', '');
     if (readonly) selectElement.setAttribute('readonly', '');
 
@@ -589,7 +629,7 @@ function generateSelectType(options) {
     defaultOption.textContent = '-- select an option --';
     selectElement.appendChild(defaultOption);
 
-    if (elementId === '2029') {
+    if (elementID === '2029') {
         elementType.value = shuffle(elementType.value);
     }
     if (mode === 1) {
@@ -603,7 +643,7 @@ function generateSelectType(options) {
         const optionElement = document.createElement('option');
         optionElement.value = option.value;
         optionElement.textContent = option.label;
-        optionElement.dataset.condShowOn = option.show_on;
+        optionElement.dataset.condshowon = option.show_on;
         if (option.selected) optionElement.setAttribute('selected', '');
         selectElement.appendChild(optionElement);
     }
@@ -613,21 +653,22 @@ function generateSelectType(options) {
     return (document.createElement('div').appendChild(mainDiv)).outerHTML;
 }
 function generateCheckboxType(options) {
-    const { elementId, label, demographic, condChildOption, condOption, condValue, className, readonly, mode, elementType, fieldBuilder,
+    const { elementID, label, demographic, conditionalChildOption, conditionalOption, conditionalValue, className, readonly, mode, elementType, fieldBuilder,
         actions, } = options;
-    let output = '';
+    let output;
     let disabled = readonly ? 'disabled' : '';
+    let inline = className.includes('sfb-inline') ? 'sfb-inline' : '';
 
-    output = `<div class="${className}" data-label="${label}" data-demographic="${demographic}" data-cond-child-option="${condChildOption}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-type="checkbox" id="main${elementId}">${fieldBuilder}${actions}<br>`;
-    output += `<div id="${elementId}">`;
+    output = `<div class="${className}" data-label="${label}" data-demographic="${demographic}" data-cond-child-option="${conditionalChildOption}" data-conditionalOption="${conditionalOption}" data-conditionalValue="${conditionalValue}" data-type="checkbox" id="main${elementID}">${fieldBuilder}${actions}<br>`;
+    output += `<div id="${elementID}">`;
 
     if (mode === 1) {
-        output += generateDefaultCheckboxes(elementId);
+        output += generateDefaultCheckboxes(elementID);
     } else {
         for (const option of elementType.value) {
             const selected = option.selected ? 'checked' : '';
 
-            output += `<div class="checkbox"><label><input type="checkbox" ${selected} ${readonly ? 'readonly' : ''} ${disabled} data-cond-show_on="${option.show_on}" value="${option.value}" id="${elementId}" name="${elementId}">${option.label}</label></div>`;
+            output += `<div class="sfb-checkbox ${inline}"><label><input type="checkbox" ${selected} ${readonly ? 'readonly' : ''} ${disabled} data-cond-show_on="${option.show_on}" value="${option.value}" id="${elementID}" name="${elementID}">${option.label}</label></div>`;
         }
     }
 
@@ -636,11 +677,11 @@ function generateCheckboxType(options) {
     return output;
 }
 
-function generateDefaultCheckboxes(elementId, options = ['Option 1', 'Option 2', 'Option 3']) {
+function generateDefaultCheckboxes(elementID, options = ['Option 1', 'Option 2', 'Option 3']) {
     let defaultCheckboxes = '';
 
     for (const option of options) {
-        defaultCheckboxes += `<div class="checkbox"><label><input type="checkbox" value="${option}" id="check-1528713131180-preview-0" name="${elementId}">${option}</label></div>`;
+        defaultCheckboxes += `<div class="sfb-checkbox"><label><input type="checkbox" value="${option}" id="check-1528713131180-preview-0" name="${elementID}">${option}</label></div>`;
     }
 
     return defaultCheckboxes;
@@ -648,12 +689,12 @@ function generateDefaultCheckboxes(elementId, options = ['Option 1', 'Option 2',
 
 function generateRadioType(options) {
     const {
-        elementId,
+        elementID,
         label,
         demographic,
-        condChildOption,
-        condOption,
-        condValue,
+        conditionalChildOption,
+        conditionalOption,
+        conditionalValue,
         className,
         required,
         readonly,
@@ -663,13 +704,13 @@ function generateRadioType(options) {
         actions,
     } = options;
 
-    let output = '';
-
-    output = `<div class="${className}" data-label="${label}" data-demographic="${demographic}" data-cond-child-option="${condChildOption}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-type="radio" id="main${elementId}">
+    let output;
+    let inline = className.includes('sfb-inline') ? 'sfb-inline' : '';
+    output = `<div class="${className}" data-label="${label}" data-demographic="${demographic}" data-cond-child-option="${conditionalChildOption}" data-conditionalOption="${conditionalOption}" data-conditionalValue="${conditionalValue}" data-type="radio" id="main${elementID}">
             ${fieldBuilder}
             ${actions}
             <br>
-                <div id="${elementId}">`;
+                <div id="${elementID}">`;
 
     if (mode === 1) {
         elementType.value = [
@@ -681,7 +722,7 @@ function generateRadioType(options) {
     }
         for (let option of elementType.value) {
             let selected = option.selected ? 'checked' : '';
-            output += `<div class="radio"><label><input ${required ? 'required' : ''} type="radio" ${selected} ${readonly ? 'readonly disabled' : ''} data-cond-show_on="${option.show_on}" value="${option.value}" name="${elementId}">${option.label}</label></div>`;
+            output += `<div class="sfb-radio ${inline}"><label><input ${required ? 'required' : ''} type="radio" ${selected} ${readonly ? 'readonly disabled' : ''} data-cond-show_on="${option.show_on}" value="${option.value}" name="${elementID}">${option.label}</label></div>`;
         }
 
 
@@ -693,58 +734,57 @@ function generateRadioType(options) {
 
 function generateParagraphType(options) {
     const {
-        elementId,
+        elementID,
         label,
-        condOption,
-        condValue,
+        conditionalOption,
+        conditionalValue,
         className,
         fieldBuilder,
         actions,
     } = options;
 
 
-    return `<div class="${className}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-label="${label}" data-type="paragraph" id="main${elementId}">${fieldBuilder}${actions}<br><br><br></div>`;
+    return `<div class="${className}" data-conditionalOption="${conditionalOption}" data-conditionalValue="${conditionalValue}" data-label="${label}" data-type="paragraph" id="main${elementID}">${fieldBuilder}${actions}<br><br><br></div>`;
 }
 //.replace(/<(\/)?label/g, '<$1p>')
 //.replace(/<(\/)?label/g, '<$1h3>')
 
 function generateHeaderType(options) {
     const {
-        elementId,
+        elementID,
         label,
-        condOption,
-        condValue,
+        conditionalOption,
+        conditionalValue,
         className,
         fieldBuilder,
         actions,
     } = options;
 
 
-    return `<div class="${className}" data-cond-option="${condOption}" data-cond-value="${condValue}" data-label="${label}" id="main${elementId}">${fieldBuilder}${actions}<br><br><br></div>`;
+    return `<div class="${className}" data-conditionalOption="${conditionalOption}" data-conditionalValue="${conditionalValue}" data-label="${label}" id="main${elementID}">${fieldBuilder}${actions}<br><br><br></div>`;
 }
 /**
  * Generate the HTML for a table element.
  * @param {Object} options - The options for the table element.
- * @param {string} options.elementId - The id of the table element.
+ * @param {string} options.elementID - The id of the table element.
  * @param {string} options.label - The label for the table element.
- * @param {string} options.condOption - The conditional option for the table element.
- * @param {string} options.condValue - The conditional value for the table element.
- * @param {boolean} options.autoFill - Whether the table should be auto-filled.
+ * @param {string} options.conditionalOption - The conditional option for the table element.
+ * @param {string} options.conditionalValue - The conditional value for the table element.
  * @param {string} options.className - The class name for the table element.
  * @param {Object} options.elementType - The type of the table element.
- * @param {string} fieldBuilder - The field label template.
- * @param {string} actions - The value to replace in the field label template.
- * @param {number} mode - The mode for creating the table.
+ * @param {string} options.fieldBuilder - The field label template.
+ * @param {string} options.actions - The value to replace in the field label template.
+ * @param {number} options.mode - The mode for creating the table.
  * @returns {string} The generated HTML for the table element.
  */
 function generateTableType(options) {
         let {
-            elementId,
+            elementID,
             label,
             demographic,
-            condChildOption,
-            condOption,
-            condValue,
+            conditionalChildOption,
+            conditionalOption,
+            conditionalValue,
             className,
             required,
             readonly,
@@ -753,8 +793,8 @@ function generateTableType(options) {
             fieldBuilder,
             actions,
         } = options;
-    let output = `<div data-type="table" data-label="${label}" class="${className}" data-cond-option="${condOption}" data-cond-value="${condValue}" id="main${elementId}">`;
-    output += fieldBuilder.replace(/repIIDD/g, elementId).replace(/fb-repType-Label/g, 'panel-body') + actions+'<br>';
+    let output = `<div data-type="table" data-label="${label}" class="${className}"  data-demographic="${demographic}"  data-conditionalOption="${conditionalOption}" data-conditionalValue="${conditionalValue}" id="main${elementID}">`;
+    output += fieldBuilder.replace(/repIIDD/g, elementID).replace(/fb-repType-Label/g, 'panel-body') + actions+'<br>';
 
     if (mode === 1) {
         elementType = {
@@ -775,7 +815,7 @@ function generateTableType(options) {
             values:[]
         };
     }
-    output += createTable({rows:elementType.rows.length, cols:elementType.columns.length, id:elementId, rowsData:elementType.rows, colsData:elementType.columns, values:elementType.values, tableType:elementType.tableType, elementType});
+    output += createTable({rows:elementType.rows.length, cols:elementType.columns.length, id:elementID, rowsData:elementType.rows, colsData:elementType.columns, values:elementType.values, tableType:elementType.tableType, elementType});
 
     output += '</div>';
 
@@ -802,7 +842,7 @@ function createTable(options) {
     options = Object.assign({}, defaultOptions, options);
 
     const table = document.createElement('table');
-    table.className = 'table table-hover table-striped';
+    table.className = 'sfb-table sfb-table-hover sfb-table-striped';
     table.id = options.id;
     table.dataset.tabletype = options.tableType;
 
@@ -815,6 +855,11 @@ function createTable(options) {
    // return ;
 }
 
+    /**
+     * Creates a table head element with the given options.
+     * @param {Object} options - The options for the table head.
+     * @returns {HTMLElement} The created table head element.
+     */
 function createTableHead(options) {
     const thead = document.createElement('thead');
     const tr = document.createElement('tr');
@@ -833,6 +878,12 @@ function createTableHead(options) {
     return thead;
 }
 
+    /**
+     * Creates a table row element with the given options and row index.
+     * @param {Object} options - The options for the table row.
+     * @param {number} i - The row index.
+     * @returns {HTMLElement} The created table row element.
+     */
 function createTableRow(options, i) {
     const tr = document.createElement('tr');
 
@@ -843,6 +894,13 @@ function createTableRow(options, i) {
     return tr;
 }
 
+    /**
+     * Creates a table cell element with the given options and row and column indices.
+     * @param {Object} options - The options for the table cell.
+     * @param {number} i - The row index.
+     * @param {number} j - The column index.
+     * @returns {HTMLElement} The created table cell element.
+     */
 function createTableCell(options, i, j) {
     const cell = document.createElement('td');
     cell.id = `${options.id}_${i}_${j}`;
@@ -878,47 +936,110 @@ function createTableCell(options, i, j) {
 
 
 
-/**
- * Edits a specified HTML element based on the elementId and dataType provided, applying changes
- * to related elements and configurations if necessary.
- *
- * @function
- * @param {string} elementId - The ID of the target HTML element to edit.
- * @param {string} dataType - The type of the target HTML element (e.g., 'select', 'checkbox', 'radio', or 'table').
- */
-function editElement(elementId, dataType) {
-    let element = document.getElementById(elementId);
-    let formattedElement = '';
-    let mainElement = document.getElementById('main' + elementId);
+    /**
+     * Edits a specified HTML element based on the elementID and dataType provided, applying changes
+     * to related elements and configurations if necessary.
+     *
+     * @function
+     * @param {string} elementID - The ID of the target HTML element to edit.
+     * @param {string} dataType - The type of the target HTML element (e.g., 'select', 'checkbox', 'radio', or 'table').
+     */
+    function editElement(elementID, dataType) {
+        let element = document.getElementById(elementID);
+        let formattedElement = '';
+        let mainElement = document.getElementById('main' + elementID);
 
-    if (element) {
-        formattedElement = mainElement.getAttribute("data-label");
-        generateFieldEdit(elementId, dataType, formattedElement);
-        element.remove();
-        let conditionalOption = mainElement.getAttribute("data-cond-option");
+        if (element) {
+            formattedElement = mainElement.getAttribute("data-label");
+            generateFieldEdit(elementID, dataType, formattedElement);
 
-        if (conditionalOption) {
-            updateOption(elementId, conditionalOption);
-        }
+            document.getElementById(elementID).remove();
 
-        // Replace with vanilla JavaScript implementation if sortable library is used
-        // document.querySelector(".sortable-options").sortable();
-        $( ".sortable-options" ).sortable();
-        //todo create_tribute_values
-        //createTributeValues();
-    } else {
-        var labelSpan = document.getElementById('label_span_' + elementId);
-        if (labelSpan) {
-            labelSpan.remove();
-        }
-        if (mainElement) {
-            mainElement.insertAdjacentHTML('afterend', checkType(convertInputToJson(elementId)[0], 3));
-            mainElement.remove();
+            let conditionalOption = mainElement.getAttribute("data-conditionalOption");
 
+            if (conditionalOption) {
+                updateOption(elementID, conditionalOption);
+            }
+
+            // Replace with vanilla JavaScript implementation if sortable library is used
+            // Assuming you have implemented a vanilla JS sortable function named "initializeSortable"
+            initializeSortable(document.querySelector(".sfb-sortable-options"));
+
+        } else {
+            const labelSpan = document.getElementById('label_span_' + elementID);
+            if (labelSpan) {
+                labelSpan.remove();
+            }
+            if (mainElement) {
+                mainElement.insertAdjacentHTML('afterend', checkType(convertInputToJson(elementID)[0], 1));
+                mainElement.remove();
+            }
         }
     }
-}
 
+    /**
+     * Initialize the sortable functionality for the given element.
+     * @param {HTMLElement} container - The container element.
+     */
+    function initializeSortable(container) {
+        let draggedItem = null;
+
+        // Make all children draggable
+        Array.from(container.children).forEach(function (item) {
+            item.draggable = true;
+        });
+
+        container.addEventListener("dragstart", (event) => {
+            draggedItem = event.target;
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("Text", draggedItem.textContent);
+
+            container.addEventListener("dragover", onDragOver);
+            container.addEventListener("dragend", onDragEnd);
+
+            setTimeout(() => {
+                draggedItem.classList.add("sfb-ghost");
+            }, 0);
+        });
+
+        function onDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+
+            const target = event.target;
+            if (target && target !== draggedItem && target.classList.contains("sfb-ui-sortable-handle")) {
+                const offsetY = getMouseOffset(event).y;
+                const middleY = getElementVerticalCenter(target);
+
+                if (offsetY > middleY) {
+                    container.insertBefore(draggedItem, target.nextSibling);
+                } else {
+                    container.insertBefore(draggedItem, target);
+                }
+            }
+        }
+
+        function onDragEnd(event) {
+            event.preventDefault();
+
+            draggedItem.classList.remove("sfb-ghost");
+            container.removeEventListener("dragover", onDragOver);
+            container.removeEventListener("dragend", onDragEnd);
+        }
+
+        function getMouseOffset(event) {
+            const targetRect = event.target.getBoundingClientRect();
+            return {
+                x: event.pageX - targetRect.left,
+                y: event.pageY - targetRect.top,
+            };
+        }
+
+        function getElementVerticalCenter(el) {
+            const rect = el.getBoundingClientRect();
+            return (rect.bottom - rect.top) / 2;
+        }
+    }
 /**
  * Adds an option to the specified element.
  *
@@ -931,31 +1052,34 @@ function addOption(label = 'Option 3', value = 'Option 3', fieldId) {
         throw new TypeError('The "fieldId" argument must be a string.');
     }
 
-    const ele = $(fieldId);
-    let output = '<li class="ui-sortable-handle">';
+    const ele = document.querySelector(fieldId);
+    let output = document.createElement("li");
+    output.classList.add("sfb-ui-sortable-handle");
 
     if (fieldId.includes('#rl_')) {
-        output += `<input type="text" class="option-label" value="${label}" name="select-optionRowName" placeholder="Label">
-            <input type="text" class="option-label" value="${value}" name="select-optionRowValue" placeholder="Value/placeholder">
-            <input type="text" class="option-label" value="" name="select-optionR_filter" placeholder="show On Filter">`;
+        output.innerHTML = `<input type="text" class="sfb-option-label" value="${label}" name="select-optionRowName" placeholder="Label">
+            <input type="text" class="sfb-option-label" value="${value}" name="select-optionRowValue" placeholder="Value/placeholder">
+            <input type="text" class="sfb-option-label" value="" name="select-optionR_filter" placeholder="show On Filter">`;
     } else if (fieldId.includes('#cl_')) {
-        output += `<input type="radio" class="option-selected" value="false" name="selected-option" placeholder="">
-                    <input type="text" style="display:table-cell; width:60%"  class="option-label" value="${label}" name="select-optionC" placeholder="Label">`;
+        output.innerHTML = `<input type="radio" class="sfb-option-selected" value="false" name="selected-option" placeholder="">
+                    <input type="text"  class="sfb-option-label" value="${label}" name="select-optionC" placeholder="Label">`;
     } else {
-        output += `<input type="radio" class="option-selected" value="false" name="selected-option" placeholder="">
-            <input type="text" class="option-label" value="${label}" name="select-option" placeholder="Label">
-            <input type="text" class="option-value" value="${value}" name="select-value" placeholder="value">
-            <input type="text" class="option-filter" value="" name="select-filter" placeholder="show On Filter">`;
+        output.innerHTML = `<input type="radio" class="sfb-option-selected" value="false" name="selected-option" placeholder="">
+            <input type="text" class="sfb-option-label" value="${label}" name="select-option" placeholder="Label">
+            <input type="text" class="sfb-option-value" value="${value}" name="select-value" placeholder="value">
+            <input type="text" class="sfb-option-filter" value="" name="select-filter" placeholder="show On Filter">`;
     }
 
-    const listItem = $(output);
-    const removeButton = $('<a class="remove btn" title="Remove Element">×</a>');
-    removeButton.on('click', function() {
-        listItem.remove();
+    const removeButton = document.createElement("a");
+    removeButton.className = "sfb-remove sfb-btn";
+    removeButton.title = "Remove Element";
+    removeButton.textContent = "×";
+    removeButton.addEventListener("click", function() {
+        output.remove();
     });
 
-    listItem.append(removeButton);
-    ele.append(listItem);
+    output.appendChild(removeButton);
+    ele.appendChild(output);
 }
     /**
      * Modifies the row and column inputs based on the selected table type.
@@ -967,35 +1091,38 @@ function addOption(label = 'Option 3', value = 'Option 3', fieldId) {
      * @param {string} fieldId - The identifier for the parent element containing the Trow and table-dropdown-values divs.
      */
     function modifyRowColumn(tableType, fieldId) {
-        const parentElement = $(`#div_${fieldId}`);
-        const TrowDiv = parentElement.find(".Trow");
-        const optionValueInputs = TrowDiv.find("input.option-value");
-        const tableDropdownValuesDiv = parentElement.find(".table-dropdown-values");
+        const parentElement = document.querySelector(`#div_${fieldId}`);
+        const TrowDiv = parentElement.querySelector(".sfb-Trow");
+        const optionValueInputs = TrowDiv.querySelectorAll("input.sfb-option-value");
+        const tableDropdownValuesDiv = parentElement.querySelector(".sfb-table-dropdown-values");
 
         // Function to enable or disable elements based on the condition
         function toggleElements(elements, condition) {
-            elements.prop("disabled", !condition);
-            condition ? elements.show() : elements.hide();
+            elements.forEach((element) => {
+                element.disabled = !condition;
+                element.style.display = condition ? "" : "none";
+            });
         }
 
         // Function to create and add a new dropdown option
         function createDropdownOption() {
-            const newFieldId = `dropdown-value-${fieldId}-${tableDropdownValuesDiv.children().length}`;
-            const newOption = addOption(`Option ${tableDropdownValuesDiv.children().length + 1}`, `Option ${tableDropdownValuesDiv.children().length + 1}`, newFieldId);
-            tableDropdownValuesDiv.append(newOption);
+            const newFieldId = `dropdown-value-${fieldId}-${tableDropdownValuesDiv.children.length}`;
+            addOption(`Option ${tableDropdownValuesDiv.children.length + 1}`, `Option ${tableDropdownValuesDiv.children.length + 1}`, newFieldId);
+            tableDropdownValuesDiv.appendChild(newOption);
         }
 
         if (tableType === "Text" || tableType === "Text Area" || tableType === "Number") {
             toggleElements(optionValueInputs, false);
-            toggleElements(tableDropdownValuesDiv, false);
+            toggleElements([tableDropdownValuesDiv], false);
         } else if (tableType === "Radio" || tableType === "Checkbox") {
             toggleElements(optionValueInputs, true);
-            toggleElements(tableDropdownValuesDiv, false);
+            toggleElements([tableDropdownValuesDiv], false);
         } else if (tableType === "Dropdown") {
             toggleElements(optionValueInputs, false);
-            tableDropdownValuesDiv.empty();
-            const dropdownLabel = $("<label>").text("Dropdown Values:");
-            tableDropdownValuesDiv.append(dropdownLabel);
+            tableDropdownValuesDiv.innerHTML = '';
+            const dropdownLabel = document.createElement("label");
+            dropdownLabel.textContent = "Dropdown Values:";
+            tableDropdownValuesDiv.appendChild(dropdownLabel);
 
             // Create and add initial 3 dropdown options
             for (let i = 0; i < 3; i++) {
@@ -1003,11 +1130,14 @@ function addOption(label = 'Option 3', value = 'Option 3', fieldId) {
             }
 
             // Add the "add-opt" button for adding more dropdown options
-            const addButton = $('<a class="add add-opt btn btn-default pull-right" id="add-dropdown-value">Add Dropdown Value +</a>');
-            addButton.on('click', createDropdownOption);
-            tableDropdownValuesDiv.append(addButton);
+            const addButton = document.createElement('a');
+            addButton.classList.add('sfb-add', 'sfb-add-opt', 'sfb-btn', 'sfb-btn-default', 'sfb-pull-right');
+            addButton.id = 'add-dropdown-value';
+            addButton.textContent = 'Add Dropdown Value +';
+            addButton.addEventListener('click', createDropdownOption);
+            tableDropdownValuesDiv.appendChild(addButton);
 
-            toggleElements(tableDropdownValuesDiv, true);
+            toggleElements([tableDropdownValuesDiv], true);
         }
     }
 
@@ -1034,32 +1164,32 @@ function updateLabelSpan(idSuffix, newContent) {
  */
 function generateFieldEdit(fieldId, fieldType, fieldValue = '') {
     // Declare and initialize variables
-    const mainElement = $(`#main${fieldId}`);
-    const fieldClass = mainElement.attr('class').trim();
-    const labelText = mainElement.attr("data-label");
-    const hide = mainElement.attr("data-hide");
-    const demographic = mainElement.attr("data-demographic");
+    const mainElement = document.querySelector(`#main${fieldId}`);
+    const fieldClass = mainElement.getAttribute('class').trim();
+    const labelText = mainElement.getAttribute("data-label");
+    const hide = mainElement.getAttribute("data-hide");
+    const demographic = mainElement.getAttribute("data-demographic");
 
-    let fieldEdit = `<div id="div_${fieldId}" class="edit_template"></div>`;
+    let fieldEdit = `<div id="div_${fieldId}" class="sfb-edit_template"></div>`;
 
     // Append the fieldEdit to the mainElement
-    mainElement.append(fieldEdit);
+    mainElement.innerHTML += fieldEdit;
 
 
 
     // Generate additional field edit HTML based on the field type
     let fieldContent = `
-        <br><label class="pull-left">Label</label>
-        <textarea name="label" data-elementType="${fieldType}" data-id="${fieldId}" placeholder="Label" class="fld-label form-control tribute">${labelText}</textarea><br>
-        <br><label class="pull-left">Class (Separate multiple classes by space)</label>
-        <input name="class" type="text" data-elementType="${fieldType}" data-id="${fieldId}" value="${fieldClass}" placeholder="class" class="fld-label form-control"><br>
-        <label class="pull-left">Hide from Client Chart: </label>
-        <input name="hide" type="checkbox" data-elementType="${fieldType}" data-id="${fieldId}" ${hide} class="checkbox"><br>
-        <label class="pull-left">Demograhpic Variable: </label>
-        <input name="demographic" value="Checked" type="checkbox" data-elementType="${fieldType}" data-id="${fieldId}" ${demographic} class="checkbox"><br>
-        <div id="logic_${fieldId}" class="edit_template">
-            <br><label class="pull-left">Display Logic</label>
-            <select name="form_logic" class="fld-label form-control">
+        <br><label class="sfb-pull-left">Label</label>
+        <textarea name="label" data-elementType="${fieldType}" data-id="${fieldId}" placeholder="Label" class="sfb-fld-label sfb-form-control sfb-tribute">${labelText}</textarea><br>
+        <br><label class="sfb-pull-left">Class (Separate multiple classes by space)</label>
+        <input name="class" type="text" data-elementType="${fieldType}" data-id="${fieldId}" value="${fieldClass}" placeholder="class" class="sfb-fld-label sfb-form-control"><br>
+        <label class="sfb-pull-left">Hide from Client Chart: </label>
+        <input name="hide" type="checkbox" data-elementType="${fieldType}" data-id="${fieldId}" ${hide} class="sfb-checkbox"><br>
+        <label class="sfb-pull-left">Demograhpic Variable: </label>
+        <input name="demographic" value="Checked" type="checkbox" data-elementType="${fieldType}" data-id="${fieldId}" ${demographic} class="sfb-checkbox"><br>
+        <div id="logic_${fieldId}" class="sfb-edit_template">
+            <br><label class="sfb-pull-left">Display Logic</label>
+            <select name="form_logic" class="sfb-fld-label sfb-form-control">
                 ${fieldCondition(fieldId)}
             </select>
             <br>
@@ -1097,18 +1227,21 @@ function generateFieldEdit(fieldId, fieldType, fieldValue = '') {
     }
 
     // Add the fieldContent into the edit_template div
-    const divFieldId = $(`#div_${fieldId}`);
-    divFieldId.html(fieldContent);
+    const divFieldId = document.getElementById(`div_${fieldId}`);
+    divFieldId.innerHTML = fieldContent;
 
     // Attach event listeners using event delegation
-    divFieldId.on('keyup', 'textarea[name="label"]', function() {
-        updateLabelSpan(fieldId, $(this).val());
+    divFieldId.addEventListener('keyup', function(event) {
+        if (event.target.matches('textarea[name="label"]')) {
+            updateLabelSpan(fieldId, event.target.value);
+        }
     });
 
-    divFieldId.on('change', 'select[name="form_logic"]', function() {
-        updateOption(fieldId, $(this).val());
+    divFieldId.addEventListener('change', function(event) {
+        if (event.target.matches('select[name="form_logic"]')) {
+            updateOption(fieldId, event.target.value);
+        }
     });
-
     switch (fieldType) {
         case 'select':
         case 'checkbox':
@@ -1139,125 +1272,120 @@ function generateFieldEdit(fieldId, fieldType, fieldValue = '') {
     }
 }
 
-/**
- * Generates an HTML string for text input fields.
- * @param {string} fieldId - The ID of the field.
- * @param {string} fieldType - The type of the field.
- * @param {jQuery} mainElement - The main element for the field.
- * @returns {string} The HTML string for text input fields.
- */
-function generateTextInput(fieldId, fieldType, mainElement) {
-    const placeholder = mainElement.attr("data-placeholder");
-    const required = mainElement.children('input').attr('required');
-    const defaultValue = mainElement.attr("data-value");
-    const checked = required ? 'Checked' : '';
+    /**
+     * Generates an HTML string for text input fields.
+     * @param {string} fieldId - The ID of the field.
+     * @param {string} fieldType - The type of the field.
+     * @param {HTMLElement} mainElement - The main element for the field.
+     * @returns {string} The HTML string for text input fields.
+     */
+    function generateTextInput(fieldId, fieldType, mainElement) {
+        const inputChild = mainElement.querySelector('input, textarea');
+        const placeholder = mainElement.getAttribute("data-placeholder");
+        const required = inputChild.getAttribute('required');
+        const defaultValue = mainElement.getAttribute("data-value");
+        const checked = required ? 'Checked' : '';
 
-    let textInputHtml = `
+        let textInputHtml = `
     <label>Required</label> &nbsp; &nbsp;
-    <input type="checkbox" class="fld-required" name="required" value="required" ${checked}><br>
+    <input type="checkbox" class="sfb-fld-required" name="required" value="required" ${checked}><br>
     <label>Placeholder</label>
-    <textarea name="placeholder" class="form-control tribute">${placeholder}</textarea><br>
+    <textarea name="placeholder" class="sfb-form-control sfb-tribute">${placeholder}</textarea><br>
     <label>Default Value</label>
-    <textarea name="default_value" class="form-control tribute">${defaultValue}</textarea><br>
+    <textarea name="default_value" class="sfb-form-control sfb-tribute">${defaultValue}</textarea><br>
   `;
 
-    if (fieldType === 'number' || fieldType === 'range') {
-        const max = mainElement.children('input').attr('max');
-        const min = mainElement.children('input').attr('min');
-        const step = mainElement.children('input').attr('step');
+        if (fieldType === 'number' || fieldType === 'range') {
+            const max = inputChild.getAttribute('max');
+            const min = inputChild.getAttribute('min');
+            const step = inputChild.getAttribute('step');
 
-        textInputHtml += `
-      <div class="form-group min-wrap">
+            textInputHtml += `
+      <div class="sfb-form-group sfb-min-wrap">
         <label for="min-frmb-1610598484374-fld-4">Min</label>
-        <div class="input-wrap">
-          <input type="number" value="${min}" name="fld_min" class="fld-min form-control form-control" id="min-frmb-1610598484374-fld-4">
+        <div class="sfb-input-wrap">
+          <input type="number" value="${min}" name="fld_min" class="sfb-fld-min sfb-form-control sfb-form-control" id="min-frmb-1610598484374-fld-4">
         </div>
       </div>
-      <div class="form-group max-wrap">
+      <div class="sfb-form-group sfb-max-wrap">
         <label for="max-frmb-1610598484374-fld-4">Max</label>
-        <div class="input-wrap">
-          <input type="number" value="${max}" name="fld_max" class="fld-max form-control form-control" id="max-frmb-1610598484374-fld-4">
+        <div class="sfb-input-wrap">
+          <input type="number" value="${max}" name="fld_max" class="sfb-fld-max sfb-form-control sfb-form-control" id="max-frmb-1610598484374-fld-4">
         </div>
       </div>
-      <div class="form-group step-wrap">
+      <div class="sfb-form-group sfb-step-wrap">
         <label for="step-frmb-1610598484374-fld-4">Step</label>
-        <div class="input-wrap">
-          <input type="number" value="${step}" name="fld_step" class="fld-step form-control form-control" id="step-frmb-1610598484374-fld-4">
+        <div class="sfb-input-wrap">
+          <input type="number" value="${step}" name="fld_step" class="sfb-fld-step sfb-form-control sfb-form-control" id="step-frmb-1610598484374-fld-4">
         </div>
       </div>
     `;
+        }
+
+        return textInputHtml;
     }
 
-    return textInputHtml;
-}
+    /**
+     * Generates an HTML string for select input fields.
+     * @param {string} fieldId - The ID of the field to edit.
+     * @param {string} fieldType - The type of the field to edit.
+     * @param {HTMLElement} mainElement - The main element for the field.
+     * @returns {string} The HTML string for the select input field.
+     */
+    function generateSelectInput(fieldId, fieldType, mainElement) {
+        // Declare and initialize variables
+        const fieldClass = mainElement.className;
+        const isChecked = fieldClass.includes('sfb-inline') ? 'checked' : '';
 
-/**
- * Generates an HTML string for select input fields.
- * @param {string} fieldId - The ID of the field to edit.
- * @param {string} fieldType - The type of the field to edit.
- * @param {object} mainElement - The main jQuery element for the field.
- * @returns {string} The HTML string for the select input field.
- */
-function generateSelectInput(fieldId, fieldType, mainElement) {
-    // Declare and initialize variables
-    const fieldClass = mainElement.attr('class');
-    const isChecked = fieldClass.includes('inline') ? 'checked' : '';
+        // Replace this with the actual options HTML string
+        const {
+            optionValues,
+            outOptionsRows,
+            outOptionsColumns
+        } = editForOptions(fieldId, fieldType);
 
-    // Replace this with the actual options HTML string
-    const {
-        optionValues,
-        outOptionsRows,
-        outOptionsColumns
-    } = editForOptions(fieldId, fieldType);
-
-
-
-    return `
+        return `
     ${fieldType === 'checkbox' || fieldType === 'radio' ? `
       <label class="">Inline</label>  &nbsp; &nbsp;
-      <input ${isChecked} type="checkbox" class="fld-required" name="fld_inline" value="inline"  onclick="inliner(this,'${fieldId}');">
+      <input ${isChecked} type="checkbox" class="sfb-fld-required" name="fld_inline" value="inline"  onclick="toggleInlineClass(this,'${fieldId}');">
       <br>` : ''}
-    <label class="">Scorable</label>  &nbsp; &nbsp;
-    <input type="checkbox" class="fld-required" min="1" name="fld_score" value="1">
     <br>
-    <div class="form-group field-options">
-      <label class="false-label">Options <button  id="optionsCSV-${fieldId}" class="btn btn-default"> Upload through CSV</button></label>
-      <div class="sortable-options-wrap">
-        <ol class="sortable-options ui-sortable" id="ol_${fieldId}">
+    <div class="sfb-form-group sfb-field-options">
+      <label class="sfb-false-label">Options <button  id="optionsCSV-${fieldId}" class="sfb-btn sfb-btn-default"> Upload through CSV</button></label>
+      <div class="sfb-sortable-options-wrap">
+        <ol class="sfb-sortable-options sfb-ui-sortable" id="ol_${fieldId}">
           ${outOptionsRows}
         </ol>
-        <div class="option-actions">
-          <a class="add add-opt btn btn-default pull-right" id="add-opt-${fieldId}">Add Option +</a>
+        <div class="sfb-option-actions">
+          <a class="sfb-add sfb-add-opt sfb-btn sfb-btn-default sfb-pull-right" id="add-opt-${fieldId}">Add Option +</a>
         </div>
       </div>
     </div>
   `;
-}
+    }
 
-/**
- * Generates an HTML string for table input fields.
- * @param {string} fieldId - The ID of the field to edit.
- * @param {string} fieldType - The type of the field to edit.
- * @param {jQuery} mainElement - The jQuery object for the main element.
- * @returns {string} The HTML string for the table input fields.
- */
-function generateTableInput(fieldId, fieldType, mainElement) {
-    const tableTypeLabel = mainElement.children('table').attr("data-tabletype");
-    const tableRow = ""; // Replace with the code to generate table rows
-    const tableCol = ""; // Replace with the code to generate table columns
+    /**
+     * Generates an HTML string for table input fields.
+     * @param {string} fieldId - The ID of the field to edit.
+     * @param {string} fieldType - The type of the field to edit.
+     * @param {HTMLElement} mainElement - The DOM element for the main element.
+     * @returns {string} The HTML string for the table input fields.
+     */
+    function generateTableInput(fieldId, fieldType, mainElement) {
+        const tableTypeLabel = mainElement.querySelector('table').getAttribute("data-tabletype");
 
-    // Replace this with the actual options HTML string
-    const {
-        optionValues,
-        outOptionsRows,
-        outOptionsColumns
-    } = editForOptions(fieldId, fieldType);
+        // Replace this with the actual options HTML string
+        const {
+            optionValues,
+            outOptionsRows,
+            outOptionsColumns
+        } = editForOptions(fieldId, fieldType);
 
-    return `
-    <div class="row">
-      <div class="col-sm-4"><label>Type of Table:</label></div>
-      <div class="col-sm-8">
-        <select name="table_type" id="tableType_${fieldId}" class="form-control">
+        return `
+    <div class="sfb-row">
+      <div class="sfb-col-sm-4"><label>Type of Table:</label></div>
+      <div class="sfb-col-sm-8">
+        <select name="table_type" id="tableType_${fieldId}" class="sfb-form-control">
           <option ${tableTypeLabel === "Dropdown" ? "selected" : ""} value="Dropdown">Dropdown</option>
           <option ${tableTypeLabel === "Radio" ? "selected" : ""} value="Radio">Radio</option>
           <option ${tableTypeLabel === "Checkbox" ? "selected" : ""} value="Checkbox">Checkbox</option>
@@ -1268,75 +1396,72 @@ function generateTableInput(fieldId, fieldType, mainElement) {
       </div>
     </div>
     <br>
-    <label class="pull-left">Scorable</label>  &nbsp; &nbsp;
-    <input type="checkbox" class="fld-required" min="1" name="fld_score" value="1"><br>
-    <br>
-    <div class="form-group field-options">
-      <label class="false-label">Options:</label>
-      <div class="sortable-options-wrap">
-        <label class="false-label">Rows &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;</label>
-        <div class="Trow">
-          <ol class="sortable-options ui-sortable" id="rl_${fieldId}">
+    <div class="sfb-form-group sfb-field-options">
+      <label class="sfb-false-label">Options:</label>
+      <div class="sfb-sortable-options-wrap">
+        <label class="sfb-false-label">Rows &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;</label>
+        <div class="sfb-Trow">
+          <ol class="sfb-sortable-options sfb-ui-sortable" id="rl_${fieldId}">
             ${outOptionsRows}
           </ol>
         </div>
-        <div class="option-actions">
-          <a class="add add-opt btn btn-default pull-right" id="add-row-${fieldId}">Add Row Option +</a>
+        <div class="sfb-option-actions">
+          <a class="sfb-add sfb-add-opt sfb-btn sfb-btn-default sfb-pull-right" id="add-row-${fieldId}">Add Row Option +</a>
         </div>
         <br>
-        <div class="table-dropdown-values">
+        <div class="sfb-table-dropdown-values">
         
         </div>
-        <label class="false-label">Columns &nbsp; &nbsp;</label>
-        <div class="Tcol">
-          <ol class="sortable-options ui-sortable" id="cl_${fieldId}">
+        <label class="sfb-false-label">Columns &nbsp; &nbsp;</label>
+        <div class="sfb-Tcol">
+          <ol class="sfb-sortable-options sfb-ui-sortable" id="cl_${fieldId}">
             ${outOptionsColumns}
           </ol>
         </div>
-        <div class="option-actions">
-          <a class="add add-opt btn btn-default pull-right" id="add-col-${fieldId}">Add Column Option +</a>
+        <div class="sfb-option-actions">
+          <a class="sfb-add sfb-add-opt sfb-btn sfb-btn-default sfb-pull-right" id="add-col-${fieldId}">Add Column Option +</a>
         </div>
       </div>
     </div>
   `;
 
-}
+    }
 
 /**
  * Generates an HTML string for editing a payment form field.
  * @param {string} fieldId - The ID of the field to edit.
  * @param {string} fieldType - The type of the field to edit (should be 'payment').
- * @param {jQuery} mainElement - The main element of the field in the form.
+ * @param {Element} mainElement - The main element of the field in the form.
  * @returns {string} The HTML string for the payment field edit form.
  */
 function generatePaymentInput(fieldId, fieldType, mainElement) {
     // Generate the HTML string for payment input fields
     return `
     <label>Product</label>
-    <select name="product_logic" class="fld-label form-control">
+    <select name="product_logic" class="sfb-fld-label sfb-form-control">
       ${productOptions()}
     </select>
   `;
 }
 
 
-/**
- * Generates an HTML string for editing data list input fields.
- * @param {string} fieldId - The ID of the field to edit.
- * @param {string} fieldType - The type of the field to edit.
- * @param {jQuery} mainElement - The main element of the field to edit.
- * @returns {string} The HTML string for the data list edit form.
- */
-function generateDataListInput(fieldId, fieldType, mainElement) {
-    const dataListUrl = mainElement.attr('data-url') || '';
+    /**
+     * Generates an HTML string for editing data list input fields.
+     * @param {string} fieldId - The ID of the field to edit.
+     * @param {string} fieldType - The type of the field to edit.
+     * @param {HTMLElement} mainElement - The main element of the field to edit.
+     * @returns {string} The HTML string for the data list edit form.
+     */
+    function generateDataListInput(fieldId, fieldType, mainElement) {
+        const dataListUrl = mainElement.getAttribute('data-url') || '';
 
-    return `
-    <div id="data_list_${fieldId}" class="edit_template">
+        return `
+    <div id="data_list_${fieldId}" class="sfb-edit_template">
       <label>URL</label>
-      <input type="url" name="data_list_url" class="form-control" value="${dataListUrl}" placeholder="https://example.com" pattern="https://.*" required>
+      <input type="url" name="data_list_url" class="sfb-form-control" value="${dataListUrl}" placeholder="https://example.com" pattern="https://.*" required>
     </div>
   `;
-}
+    }
 
 /**
  * Generates an HTML string for editing a conjoint input field.
@@ -1348,10 +1473,10 @@ function generateDataListInput(fieldId, fieldType, mainElement) {
 function generateConjointInput(fieldId, fieldType, mainElement) {
     // Generate the HTML string for conjoint input fields
     return `
-    <button onclick="generate_div('${fieldId}')" id="generate-divs-${fieldId}" class="btn btn-primary generate_div">Generate Divs</button>
+    <button onclick="generate_div('${fieldId}')" id="generate-divs-${fieldId}" class="sfb-btn sfb-btn-primary sfb-generate_div">Generate Divs</button>
     <br><br>
-    <div class="someclass">
-        <div class="row" id="generated-divs-${fieldId}"></div>
+    <div class="sfb-someclass">
+        <div class="sfb-row" id="generated-divs-${fieldId}"></div>
     </div>`;
 }
 
@@ -1364,36 +1489,39 @@ function convertInputToJson(jsonDivId) {
     const json = [];
     let values= [];
     let rows= [{name: 'option 1', value: 'option-1'}];
-    let columns = [{name: 'option 1'}];
+    let columns = [{name: 'option 1', value: 'option-1'}];
     let label, fieldType, fieldName, tableType, className, defaultValue;
     let placeholder, required , demographic;
-    let scorable, max, min, condOption, condValue, product, price,selectedOption;
+    let max, min, conditionalOption, conditionalValue, product, price,selectedOption;
 
-    $(`#div_${jsonDivId} :input`).each(function () {
-        const input = $(this);
-        const inputName = input.attr('name');
-        const inputValue = input.val();
+    const inputs = document.querySelectorAll(`#div_${jsonDivId} input, select, textarea`);
+
+    inputs.forEach((input) => {
+        const inputName = input.getAttribute('name');
+        const inputValue = input.value;
 
         switch (inputName) {
             case "label":
                 label = inputValue;
-                fieldType = input.attr("data-elementType");
-                fieldName = input.attr("data-id");
+                fieldType = input.getAttribute("data-elementType");
+                fieldName = input.getAttribute("data-id");
                 break;
             case "placeholder":
                 placeholder = inputValue;
                 break;
             case "select-option":
-                const isSelected = input.prev().is(':checked');
-                const optionValue = input.next().val();
-                const show_on = input.next().next().val();
-                var parentTrow = input.closest('.Trow');
-                var parentTcol = input.closest('.Tcol');
+                const isSelected = input.previousElementSibling.checked;
+                const optionValue = input.nextElementSibling.value;
+                const show_on = input.nextElementSibling && input.nextElementSibling.nextElementSibling
+                    ? input.nextElementSibling.nextElementSibling.value
+                    : '';
+                const parentTrow = input.closest('.sfb-Trow');
+                const parentTcol = input.closest('.sfb-Tcol');
 
-                if (parentTrow.length > 0) {
+                if (parentTrow !== null) {
                     rows.push({ "name": inputValue, "selected": isSelected, "value": optionValue,"show_on":show_on});
-                } else if (parentTcol.length > 0) {
-                    columns.push({ "name": inputValue});
+                } else if (parentTcol !== null) {
+                    columns.push({ "name": inputValue, "value": optionValue});
                 }else{
                     values.push({ "label": inputValue, "selected": isSelected, "value": optionValue,"show_on":show_on});
                 }
@@ -1401,15 +1529,12 @@ function convertInputToJson(jsonDivId) {
                 selectedOption = 1;
                 break;
             case "select-optionR":
-                const optionValueR = input.next().val();
-                const show_onR = input.next().next().val();
+                const optionValueR = input.nextElementSibling.value;
+                const show_onR = input.nextElementSibling.nextElementSibling.value;
                 rows.push({ "name": inputValue , "value": optionValueR ,"show_on":show_onR});
                 break;
             case "select-optionC":
                 columns.push({ "name": inputValue});
-                break;
-            case "fld_score":
-                scorable = inputValue;
                 break;
             case "fld_max":
                 max = inputValue;
@@ -1421,20 +1546,20 @@ function convertInputToJson(jsonDivId) {
                 tableType = inputValue;
                 break;
             case "required":
-                if (input.is(':checked')) {
+                if (input.checked) {
                     required = inputValue;
                 }
                 break;
             case "demographic":
-                if (input.is(':checked')) {
+                if (input.checked) {
                     demographic = inputValue;
                 }
                 break;
             case "form_logic":
-                condOption = inputValue;
+                conditionalOption = inputValue;
                 break;
             case "logic_option":
-                condValue = inputValue;
+                conditionalValue = inputValue;
                 break;
             case "table_type":
                 tableType = inputValue;
@@ -1472,9 +1597,8 @@ function convertInputToJson(jsonDivId) {
         "min": min,
         "max": max,
         "required": required,
-        "cond_option": condOption,
-        "cond_value": condValue,
-        "scorable": scorable,
+        "conditionalOption": conditionalOption,
+        "conditionalValue": conditionalValue,
         "product": product,
         "price": price
     });
@@ -1482,72 +1606,133 @@ function convertInputToJson(jsonDivId) {
     return json;
 }
 
-/**
- * Resets the form with the given ID by clearing all input fields.
- * Prompts the user with a confirmation message before performing the action.
- * @param {string} formId - The ID of the div which contains the form to reset.
- */
-function resetForm(formId) {
-    var message = "Do you really want to clear fields? \n" +
-        "You would lose unsaved changes.";
+    /**
+     * Resets the form with the given ID by clearing all input fields.
+     * Prompts the user with a confirmation message before performing the action.
+     * @param {string} formId - The ID of the div which contains the form to reset.
+     */
+    function resetForm(formId) {
+        const message = "Do you really want to clear fields? \n" +
+            "You would lose unsaved changes.";
 
-    if (confirm(message)) {
-        $("#" + formId).formilize();
+        showConfirm('Confirm', message, () => {
+            const formElement = document.getElementById(formId);
+            formBuilder(formElement);
+        });
     }
-}
 
 /**
  * Save form data to a cookie and send it to the server.
- * @param {function} generateFormJson - Function that generates a JSON object from form data.
- * @param {function} saveToCookie - Function that saves form data to a cookie.
- * @param {function} sendToServer - Function that sends form data to the server.
+ * @param callback
  */
-function saveFormData(generateFormJson, saveToCookie, sendToServer) {
+function saveFormData(callback) {
     try {
         const formData = generateFormJson();
-        saveToCookie(formData, () => {
-            sendToServer(formData)
-                .then(() => {
-                    console.log('Form data saved to cookie and sent to the server successfully.');
-                })
-                .catch((error) => {
-                    console.error('Error sending form data to the server:', error);
-                });
-        });
+        if(callback && typeof(callback) === "function"){
+            callback(formData);
+        }else{
+            console.log(formData);
+            showAlert('Current Form JSON', JSON.stringify(formData))
+        }
     } catch (error) {
-        console.error('Error saving form data:', error);
+        console.error('Error generating form data:', error);
     }
 }
 
-/**
- * Deletes a form element with the given ID suffix.
- * @param {string} idSuffix - The suffix of the element's ID.
- */
-function deleteFormElement(idSuffix) {
-    if (confirm('Do you really want to delete this element')) {
-        $('#main' + idSuffix).remove();
+    /**
+     * Deletes a form element with the given ID suffix.
+     * @param {string} idSuffix - The suffix of the element's ID.
+     */
+    function deleteFormElement(idSuffix) {
+        showConfirm('Confirm', 'Do you really want to delete this element?', () => {
+            const element = document.getElementById("main" + idSuffix);
+            if (element) {
+                element.remove();
+            }
+        });
     }
-}
+
+    function createModal(title, body, footer) {
+        const modal = document.createElement('div');
+        modal.className = 'sfb-custom-modal';
+
+        modal.innerHTML = `
+    <div class="sfb-custom-modal-content">
+      <div class="sfb-custom-modal-header">
+        <h3 class="sfb-custom-modal-title">${title}</h3>
+        <span class="sfb-custom-modal-close">&times;</span>
+      </div>
+      <div class="sfb-custom-modal-body">${body}</div>
+      <div class="sfb-custom-modal-footer">${footer}</div>
+    </div>
+  `;
+
+        // Close the modal when the close button or the backdrop is clicked
+        modal.querySelector('.sfb-custom-modal-close').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+
+        return modal;
+    }
+
+    function showAlert(title, message) {
+        const footer = '<button class="sfb-modal-btn">OK</button>';
+        const modal = createModal(title, message, footer);
+
+        document.body.appendChild(modal);
+
+        modal.style.display = 'block';
+
+        modal.querySelector('.sfb-modal-btn').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+    }
+
+    function showConfirm(title, message, onConfirm) {
+        const footer = `
+    <button class="sfb-modal-btn sfb-confirm sfb-btn-success">Yes</button>
+    <button class="sfb-modal-btn sfb-cancel sfb-btn-danger">No</button>
+  `;
+        const modal = createModal(title, message, footer);
+
+        document.body.appendChild(modal);
+
+        modal.style.display = 'block';
+
+        modal.querySelector('.sfb-confirm').addEventListener('click', () => {
+            onConfirm();
+            modal.style.display = 'none';
+        });
+
+        modal.querySelector('.sfb-cancel').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+    }
 /**
  * Copies an element and generates a new one with a unique ID.
  *
- * @param {string} elementId - The ID of the element to be copied.
+ * @param {string} elementID - The ID of the element to be copied.
  * @return {void}
  */
-function copyElement(elementId) {
-    const element = document.getElementById(elementId);
+function copyElement(elementID) {
+    const element = document.getElementById(elementID);
     let formData;
 
     if (element) {
-        formData = generateFormJson(`#main${elementId}`).formElements[0];
+        formData = generateFormJson(`#main${elementID}`)[0];
     } else {
-        formData = convertInputToJson(elementId)[0];
+        formData = convertInputToJson(elementID)[0];
     }
 
     const uniqueCounter =  Math.floor(Math.random() * (1e13 - 1e12) + 1e12);
     formData.name = `v${uniqueCounter}`;
 
-    const newElement = checkType(formData, 3);
+    const newElement = checkType(formData, 1);
     element.parentElement.insertAdjacentHTML('afterend', newElement);
 }
 
@@ -1558,26 +1743,11 @@ function copyElement(elementId) {
  */
 function generateFormJson(formId = '') {
     const json = [];
-    document.querySelectorAll('.main-form' + formId).forEach((element) => {
-        let optionValues = [];
-        let label = '';
-        let className = '';
-        let defaultValue = '';
-        let condValue = element.dataset.condValue;
-        let condOption = element.dataset.condOption;
-        let autoFill = element.dataset.autoFill;
-        let placeholder = '';
-        let required = '';
-        let demographic = '';
-        let values = '';
-        let rows = [];
-        let columns = [];
-        let tableType = '';
-        let price = '';
-        let product = '';
-        let min = '';
-        let max = '';
-
+    document.querySelectorAll('.sfb-main-form' + formId).forEach((element) => {
+        let optionValues = [], label = '', className, defaultValue = '', conditionalOption = element.dataset.conditionaloption,
+            conditionalValue = element.dataset.conditionalvalue, placeholder = '',
+            required = '', demographic = '', values = '', rows = [], columns = [], tableType = '', price = '',
+            product = '', min = '', max = '';
         const tag = element.getAttribute('data-type');
         const id = element.getAttribute('id').split('main')[1];
         className = element.getAttribute('class');
@@ -1589,13 +1759,15 @@ function generateFormJson(formId = '') {
             case 'picture':
             case 'hidden':
                 // Logic for these tag types
-                placeholder = element.attr("data-placeholder");
-                required = element.children('input').attr('required');
-                demographic = element.children('input').attr('demographic');
+                placeholder = element.dataset.placeholder;
+                const inputElement= element.querySelector('input');
+                required = inputElement.getAttribute('required');
+                demographic = inputElement.getAttribute('demographic');
                 if ((tag === 'number')) {
-                    min = element.children('input').attr('min');
-                    max = element.children('input').attr('max');
-                    table_type = element.children('input').attr('step');
+
+                    min = inputElement.getAttribute('min');
+                    max = inputElement.getAttribute('max');
+                    tableType = inputElement.getAttribute('step');
                 }
                 break;
             case 'select':
@@ -1637,41 +1809,14 @@ function generateFormJson(formId = '') {
             min: min,
             max: max,
             required: required,
-            condOption: condOption,
-            condValue: condValue,
-            autoFill: autoFill,
-            scorable: '',
+            conditionalOption: conditionalOption,
+            conditionalValue: conditionalValue,
             product: product,
             price: price,
         });
     });
 
-    const forms = {};
-    const settings = [];
-
-    try{
-        settings.push(
-            {
-                formNames: document.getElementById('form_names').value,
-            },
-            {
-                formUpload: document.getElementById('form_upload').checked
-                    ? document.getElementById('form_upload').value
-                    : '0',
-            },
-            {
-                formQc: document.getElementById('page_number').value,
-            },
-        );
-    }catch (e) {
-        
-    }
-    
-
-    forms.formSettings = settings;
-    forms.formElements = json;
-
-    return forms;
+    return json;
 }
 /**
  * Generates values for select tags.
@@ -1743,87 +1888,58 @@ function generateTableRowsColumns(id) {
     return { rows, columns };
 }
 
-/**
- * Pushes form data to the server.
- * @param {Object} forms - The form data to be pushed to the server.
- */
-function pushToServer(forms) {
-    // Assuming 'r' is a defined variable or should be replaced with the correct variable.
-    var pageCookie = getCookie(r + "_page");
-    var sel_question = 0;
-
-    if (pageCookie) {
-        sel_question = pageCookie;
-    }
-
-    // Use template literals for better readability
-    ajaxCall(`/admin/formsCon.php?new_form&question=${sel_question}&group=0&nom=0`, JSON.stringify(forms));
-
-    // Remove the space after 'Success!'
-    showAlert('Success!', 'Form has been saved');
-}
-
-/**
- * Stores the serialized form data in a cookie and triggers a callback function.
- *
- * @param {Object[]} formElements - The array of form elements to be stored in the cookie.
- * @param {Function} callback - The callback function to be executed after storing the data in the cookie.
- * @returns {void}
- */
-function pushToCookie(formElements, callback) {
-    try {
-        // Change this line if you want to use another method for setting cookies
-        // For example, you can use the 'js-cookie' library
-        document.cookie = `form=${btoa(JSON.stringify(formElements))}`;
-
-        callback(formElements);
-    } catch (error) {
-        console.error("Error storing form data in the cookie: ", error);
-    }
-}
+    /**
+     * Edits the options for a specified HTML element based on the provided ID and tag, applying changes
+     * to related elements and configurations if necessary.
+     *
+     * @param {string} id - The ID of the target HTML element to edit.
+     * @param {string} tag - The type of the target HTML element (e.g., 'select', 'checkbox', 'radio', or 'table').
+     * @returns {Object} An object containing the edited option values, output rows, and output columns.
+     */
     function editForOptions(id, tag) {
         const optionValues = {
             rows: [],
             columns: []
         };
-        const element = $(`#${id}`);
+        const element = document.getElementById(id);
         let tableType = '';
 
         if (tag === 'select') {
-            element.children('option').each(function() {
-                if (!$(this).prop('disabled')) {
-                    const selected = $(this).is(':selected');
-                    optionValues.rows.push({
-                        label: $(this).text(),
-                        selected: selected,
-                        show_on: $(this).attr('data-cond-show_on'),
-                        value: $(this).val()
-                    });
-                }
+            const options = element.querySelectorAll('option:not([disabled])');
+            options.forEach((option) => {
+                const selected = option.selected;
+                optionValues.rows.push({
+                    label: option.textContent,
+                    selected: selected,
+                    show_on: option.getAttribute('data-cond-show_on'),
+                    value: option.value
+                });
             });
         } else if (tag === 'checkbox' || tag === 'radio') {
-            element.find('input').each(function() {
-                const selected = $(this).is(':checked');
+            const inputs = element.querySelectorAll('input');
+            inputs.forEach((input) => {
+                const selected = input.checked;
                 optionValues.rows.push({
-                    label: $(this).parent().text(),
+                    label: input.parentElement.textContent,
                     selected: selected,
-                    show_on: $(this).attr('data-cond-show_on'),
-                    value: $(this).val()
+                    show_on: input.getAttribute('data-cond-show_on'),
+                    value: input.value
                 });
             });
         } else if (tag === 'table') {
-            tableType = element.attr("data-tabletype");
-            element.find('tr').each(function(rowIndex) {
-                $(this).find('td, th').each(function(colIndex) {
-                    const cell = $(this);
+            tableType = element.getAttribute("data-tabletype");
+            const rows = element.querySelectorAll('tr');
+            rows.forEach((row, rowIndex) => {
+                const cells = row.querySelectorAll('td, th');
+                cells.forEach((cell, colIndex) => {
                     if (rowIndex === 0 && colIndex !== 0) {
                         optionValues.columns.push({
-                            label: cell.text()
+                            label: cell.textContent
                         });
                     } else if (colIndex === 0 && rowIndex !== 0) {
                         optionValues.rows.push({
-                            label: cell.text(),
-                            value: cell.attr( 'data-value' )
+                            label: cell.textContent,
+                            value: cell.getAttribute('data-value')
                         });
                     }
                 });
@@ -1834,31 +1950,28 @@ function pushToCookie(formElements, callback) {
         const filterDatalist = updateFilterOption(id);
 
         const generateOptions = (options, isColumn) => {
-
             return options.map(option => {
                 const checked = option.selected ? 'checked' : '';
                 const showOn = option.show_on ? option.show_on : '';
                 const hideOptionValue = (tableType === "Text" || tableType === "Text Area" || tableType === "Number") ? 'style="display:none;"' : '';
                 const disableOptionValue = (tableType === "Text" || tableType === "Text Area" || tableType === "Number") ? 'disabled' : '';
                 return `
-                  <li class="ui-sortable-handle">
-                    <input type="radio" class="selected-option" value="false" name="selected-option" ${checked}>
-                  
-                    <input type="text" class="option-label" value="${option.label}" name="select-option" placeholder="Label">
-                    ${!isColumn ? `
-                    <input type="text" class="option-value" value="${option.value}" name="select-value" placeholder="Value" ${disableOptionValue} ${hideOptionValue}>
-                    <input class="option-filter" list="filter-list-${id}" value="${showOn}" name="select-filter" id="filter-${id}" placeholder="show On Filter">
-                        <datalist id="filter-list-${id}">
-                        ${filterDatalist}
-                        </datalist>` : ''}
-                    <!-- Additional HTML elements can be added here -->
-                    <a onclick="$(this).parent().remove();" class="remove btn" title="Remove Element">×</a>
-                  </li>`;
+              <li class="sfb-ui-sortable-handle">
+                <input type="radio" class="sfb-selected-option" value="false" name="selected-option" ${checked}>
+                <input type="text" class="sfb-option-label" value="${option.label}" name="select-option" placeholder="Label">
+                ${!isColumn ? `
+                <input type="text" class="sfb-option-value" value="${option.value}" name="select-value" placeholder="Value" ${disableOptionValue} ${hideOptionValue}>
+                <input class="sfb-option-filter" list="filter-list-${id}" value="${showOn}" name="select-filter" id="filter-${id}" placeholder="show On Filter">
+                    <datalist id="filter-list-${id}">
+                    ${filterDatalist}
+                    </datalist>` : ''}
+                <a onclick="this.parentElement.remove();" class="sfb-remove sfb-btn" title="Remove Element">×</a>
+              </li>`;
             }).join('');
         };
 
         const outOptionsRows = generateOptions(optionValues.rows, false);
-        const outOptionsColumns = generateOptions(optionValues.columns,true);
+        const outOptionsColumns = generateOptions(optionValues.columns, true);
 
         return {
             optionValues: optionValues,
@@ -1867,140 +1980,144 @@ function pushToCookie(formElements, callback) {
         };
     }
 
-/**
- * Generates an HTML string of options for a select element based on the provided field ID and the elements in the main-form class.
- * @param {string} fieldId - The ID of the field to conditionally display options for.
- * @returns {string} - The HTML string of options for the select element.
- */
-function fieldCondition(fieldId) {
-    const mainElement = $('#main' + fieldId);
-    const condOption = mainElement.attr("data-cond-option");
-    let isSelected = 'selected';
-    if (condOption) {
-        isSelected = '';
-    }
-    let optionsHtml = '<option value="" ' + isSelected + '>No Logic</option>';
-    $('.main-form').each(function () {
-        const dataType = $(this).attr('data-type');
-        if (dataType === 'select' || dataType === 'radio' || dataType === 'checkbox') {
-            const id = $(this).children('label').attr('for');
+    /**
+     * Generates an HTML string of options for a select element based on the provided field ID and the elements in the main-form class.
+     * @param {string} fieldId - The ID of the field to conditionally display options for.
+     * @returns {string} - The HTML string of options for the select element.
+     */
+    function fieldCondition(fieldId) {
+        const mainElement = document.getElementById('main' + fieldId);
+        const conditionalOption = mainElement.getAttribute("data-conditionalOption");
+        let isSelected = 'selected';
+        if (conditionalOption) {
             isSelected = '';
-            if (id === condOption) {
-                isSelected = 'selected';
-            }
-            if (id !== fieldId) {
-                optionsHtml += '<option ' + isSelected + ' value="' + id + '">' + $('#field_' + id).text() + '</option>';
-            }
         }
-    });
-    return optionsHtml;
-}
+        let optionsHtml = '<option value="" ' + isSelected + '>No Logic</option>';
+
+        const mainFormElements = document.querySelectorAll('.sfb-main-form');
+        mainFormElements.forEach((elem) => {
+            const dataType = elem.getAttribute('data-type');
+            if (dataType === 'select' || dataType === 'radio' || dataType === 'checkbox') {
+                const id = elem.querySelector('label').getAttribute('for');
+                isSelected = '';
+                if (id === conditionalOption) {
+                    isSelected = 'selected';
+                }
+                if (id !== fieldId) {
+                    optionsHtml += '<option ' + isSelected + ' value="' + id + '">' + document.getElementById('field_' + id).textContent + '</option>';
+                }
+            }
+        });
+
+        return optionsHtml;
+    }
 
     /**
      * Update the option based on the element ID and conditional option.
-     * @param {string} elementId - The element ID to update the option for.
-     * @param {string} conditionalOption - The conditional option to use for updating the option.
+     * @param {string} elementID - The element ID to update the option for.
+     * @returns {string} The updated options as an HTML string.
      */
-    function updateFilterOption(elementId) {
+    function updateFilterOption(elementID) {
         let optionValues = [];
 
-        $('.main-form').each(function () {
-            const currentElement = $(this);
-            const tag = currentElement.attr('data-type');
-            const currentElementID = currentElement.attr('id').replace('main','');
-            if(currentElementID === elementId){
+        const mainFormElements = document.querySelectorAll(".sfb-main-form");
+        mainFormElements.forEach((currentElement) => {
+            const tag = currentElement.getAttribute("data-type");
+            const currentelementID = currentElement.getAttribute("id").replace("main", "");
+            if (currentelementID === elementID) {
                 return;
             }
-            const labelText = $('#label_span_'+currentElementID).html()
+            const labelText = document.getElementById("label_span_" + currentelementID).innerHTML;
 
-            if (tag === 'select') {
-                currentElement.find('option').each(function() {
-                    if ($(this).prop('disabled') !== true) {
-                        optionValues.push({"label": `${labelText} - ${$(this).text()}`, "value":`${currentElementID} - ${$(this).val()}`});
+            if (tag === "select") {
+                const options = currentElement.querySelectorAll("option");
+                options.forEach((option) => {
+                    if (!option.disabled) {
+                        optionValues.push({ "label": `${labelText} - ${option.textContent}`, "value": `${currentelementID} - ${option.value}` });
                     }
-
                 });
-            } else if (tag === 'checkbox' || tag === 'radio') {
-                currentElement.find('input').each(function() {
-                    optionValues.push({"label":`${labelText} - ${$(this).parent().text()}`,"value":`${currentElementID} - ${$(this).val()}`});
+            } else if (tag === "checkbox" || tag === "radio") {
+                const inputs = currentElement.querySelectorAll("input");
+                inputs.forEach((input) => {
+                    optionValues.push({ "label": `${labelText} - ${input.parentElement.textContent}`, "value": `${currentelementID} - ${input.value}` });
                 });
             }
         });
+
         return optionValues.map(option => {
             return `
-            <option value="${option.value}">${option.label}</option>`;
-        }).join('');
-
+        <option value="${option.value}">${option.label}</option>`;
+        }).join("");
     }
 
     /**
      * Update the option based on the element ID and conditional option.
-     * @param {string} elementId - The element ID to update the option for.
+     * @param {string} elementID - The element ID to update the option for.
      * @param {string} conditionalOption - The conditional option to use for updating the option.
      */
-    function updateOption(elementId, conditionalOption) {
+    function updateOption(elementID, conditionalOption) {
         let optionsCond = '';
-        const mainElement = $('#main' + elementId);
-        const condValue = mainElement.attr("data-cond-value");
-        const logicOption = $('#logic_option');
+        const mainElement = document.getElementById('main' + elementID);
+        const conditionalValue = mainElement.getAttribute("data-conditionalValue");
+        const logicOption = document.getElementById('logic_option');
 
-        $('.main-form').each(function () {
-            const currentElement = $(this);
-            const tag = currentElement.attr('data-type');
+        const mainFormElements = Array.from(document.querySelectorAll('.sfb-main-form'));
+        mainFormElements.forEach((currentElement) => {
+            const tag = currentElement.getAttribute('data-type');
 
             if (tag === 'select') {
-                optionsCond = handleSelect(optionsCond, currentElement, conditionalOption, condValue);
+                optionsCond = handleSelect(optionsCond, currentElement, conditionalOption, conditionalValue);
             } else if (tag === 'checkbox' || tag === 'radio') {
-                optionsCond = handleCheckboxRadio(optionsCond, currentElement, conditionalOption, condValue);
+                optionsCond = handleCheckboxRadio(optionsCond, currentElement, conditionalOption, conditionalValue);
             }
         });
 
-        const myClassInput = $(`[data-id="${elementId}"][name="class"]`);
-        let myClassInputValue = myClassInput.val();
-        const hasConditionalClass = myClassInput.hasClass('conditional');
-        const hasInverseConditionalClass = myClassInput.hasClass('con_inverse_ditional');
+        const myClassInput = document.querySelector(`[data-id="${elementID}"][name="class"]`);
+        let myClassInputValue = myClassInput.value;
+        const hasConditionalClass = myClassInput.classList.contains('sfb-conditional');
+        const hasInverseConditionalClass = myClassInput.classList.contains('sfb-con_inverse_ditional');
         let checkInverse = '';
 
         if (conditionalOption === '') {
             if (hasConditionalClass) {
-                myClassInput.removeClass('conditional');
+                myClassInput.classList.remove('sfb-conditional');
             }
             if (hasInverseConditionalClass) {
-                myClassInput.removeClass('con_inverse_ditional');
+                myClassInput.classList.remove('sfb-con_inverse_ditional');
             }
         } else {
             if (!hasConditionalClass && !hasInverseConditionalClass) {
-                myClassInput.addClass('conditional');
+                myClassInput.classList.add('sfb-conditional');
             }
             if (hasInverseConditionalClass) {
                 checkInverse = 'checked';
             }
         }
 
-        logicOption.html(`
-        <select class="form-control" name="logic_option">${optionsCond}</select>
+        logicOption.innerHTML = `
+        <select class="sfb-form-control" name="logic_option">${optionsCond}</select>
         <br>
         <input type="checkbox" ${checkInverse} id="sss"> Inverse
         <br>
-    `);
+    `;
     }
 
     /**
      * Handle select elements.
      * @param {string} optionsCond - The current options string.
-     * @param {object} currentElement - The current jQuery element.
+     * @param {HTMLElement} currentElement - The current HTMLElement.
      * @param {string} conditionalOption - The conditional option to use for updating the option.
-     * @param {string} condValue - The conditional value from the main element.
+     * @param {string} conditionalValue - The conditional value from the main element.
      * @returns {string} - The updated options string.
      */
-    function handleSelect(optionsCond, currentElement, conditionalOption, condValue) {
-        const id = currentElement.children('select').attr('id');
+    function handleSelect(optionsCond, currentElement, conditionalOption, conditionalValue) {
+        const selectElement = currentElement.querySelector('select');
+        const id = selectElement.getAttribute('id');
 
         if (id === conditionalOption) {
-            currentElement.children('option').each(function () {
-                const optionElement = $(this);
-                const selected = condValue === optionElement.val() ? 'selected' : '';
-                optionsCond += `<option ${selected} value="${optionElement.val()}">${optionElement.text()}</option>`;
+            currentElement.querySelectorAll('option').forEach((optionElement) => {
+                const selected = conditionalValue === optionElement.value ? 'selected' : '';
+                optionsCond += `<option ${selected} value="${optionElement.value}">${optionElement.textContent}</option>`;
             });
         }
 
@@ -2010,19 +2127,20 @@ function fieldCondition(fieldId) {
     /**
      * Handle checkbox and radio elements.
      * @param {string} optionsCond - The current options string.
-     * @param {object} currentElement - The current jQuery element.
+     * @param {HTMLElement} currentElement - The current HTMLElement.
      * @param {string} conditionalOption - The conditional option to use for updating the option.
-     * @param {string} condValue - The conditional value from the main element.
+     * @param {string} conditionalValue - The conditional value from the main element.
      * @returns {string} - The updated options string.
      */
-    function handleCheckboxRadio(optionsCond, currentElement, conditionalOption, condValue) {
-        const id = currentElement.children('label').attr('for');
+    function handleCheckboxRadio(optionsCond, currentElement, conditionalOption, conditionalValue) {
+        const labelElement = currentElement.querySelector('label');
+        const id = labelElement ? labelElement.getAttribute('for') : '';
 
         if (id === conditionalOption) {
-            currentElement.find('input').each(function () {
-                const inputElement = $(this);
-                const selected = condValue === inputElement.val() ? 'selected' : '';
-                optionsCond += `<option ${selected} value="${inputElement.val()}">${inputElement.parent().text()}</option>`;
+            const inputs = Array.from(currentElement.querySelectorAll('input'));
+            inputs.forEach((inputElement) => {
+                const selected = conditionalValue === inputElement.value ? 'selected' : '';
+                optionsCond += `<option ${selected} value="${inputElement.value}">${inputElement.parentElement.textContent}</option>`;
             });
         }
 
@@ -2033,8 +2151,8 @@ function fieldCondition(fieldId) {
  * @returns {string} The HTML string for the product options.
  */
 function productOptions(){
-    s='';
-    for(var val in products) {
+    let s = '';
+    for(let val in products) {
         s = s + '<option value = "'+products[val].id+'">'+products[val].name+'</option>';
     }
     return s;
@@ -2070,26 +2188,29 @@ function updateProductValue(value, parentId) {
     }
 }
 
-/**
- * Toggles the 'inline' class for the specified element based on the checked status of the inline checkbox.
- * @param {HTMLInputElement} inlineCheckbox - The checkbox used to toggle the 'inline' class.
- * @param {string} fieldId - The attribute value to identify the target element.
- */
-function toggleInlineClass(inlineCheckbox, fieldId) {
-    const myClassInput = $('[data-id="' + fieldId + '"][name="class"]');
-    const myClassInputValue = myClassInput.val();
-    const flag = myClassInputValue.includes('inline');
+    /**
+     * Toggles the 'inline' class for the specified element based on the checked status of the inline checkbox.
+     * @param {HTMLInputElement} inlineCheckbox - The checkbox used to toggle the 'inline' class.
+     * @param {string} fieldId - The attribute value to identify the target element.
+     */
+    function toggleInlineClass(inlineCheckbox, fieldId) {
+        const myClassInput = document.querySelector(`[data-id="${fieldId}"][name="class"]`);
 
-    if (!inlineCheckbox.checked) {
-        if (flag) {
-            myClassInput.val(myClassInputValue.replace('inline', '').trim());
-        }
-    } else {
-        if (!flag) {
-            myClassInput.val(myClassInputValue.trim() + ' inline');
+        if (myClassInput) {
+            const myClassInputValue = myClassInput.value;
+            const flag = myClassInputValue.includes('sfb-inline');
+
+            if (!inlineCheckbox.checked) {
+                if (flag) {
+                    myClassInput.value = myClassInputValue.replace('sfb-inline', '').trim();
+                }
+            } else {
+                if (!flag) {
+                    myClassInput.value = `${myClassInputValue.trim()} sfb-inline`;
+                }
+            }
         }
     }
-}
 
 /**
  * Fisher-Yates-Durstenfeld shuffle algorithm to shuffle an array.
@@ -2112,119 +2233,45 @@ function shuffle(sourceArray) {
 }
 
 /**
- * Clears the name, page number, and upload fields in the form.
- */
-function clearNamePageUpload() {
-    // Assuming the trans() function is defined somewhere else in your code.
-    // If it is not, remove the line below.
-    trans(0, 0, 0);
-
-    // Replacing jQuery with vanilla JavaScript
-    document.getElementById('form_names').value = '';
-    document.getElementById('page_number').value = '';
-    document.getElementById('form_upload').checked = false;
-}
-
-/**
  * Checks if the given URL string is valid.
  * @param {string} url - The URL string to be checked.
  * @return {boolean} - Returns true if the URL is valid, false otherwise.
  */
 function validURL(url) {
-    var pattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
-        '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // domain name
-        '((\\d{1,3}\\.){3}\\d{1,3}))'+ // OR ip (v4) address
-        '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ // port and path
-        '(\\?[;&a-z\\d%_.,~+=-]*)?'+ // query string
-        '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
+    const pattern = new RegExp('^(https?:\\/\\/)?' + // protocol
+        '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
+        '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
+        '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
+        '(\\?[;&a-z\\d%_.,~+=-]*)?' + // query string
+        '(\\#[-a-z\\d_]*)?$', 'i'); // fragment locator
     return pattern.test(url);
 }
 
-    /**
-     * Fetches image assets and displays them in a modal.
-     */
-    function imageAsset() {
-        const headers = {};
-        if (jwt) {
-            headers.Authorization = 'Basic ' + jwt;
-        }
 
-        $.ajax({
-            url: 'https://api.datumforms.com/assets/pull?images=true',
-            async: true,
-            type: 'GET',
-            cache: true,
-            headers: headers,
-            crossDomain: true,
-            success: imageAssetonSuccess,
-        });
-
-        $('#enlargeProfile').modal('show');
-    }
-
-    /**
-     * Success callback for the imageAsset function.
-     * @param {Object} data - The data returned from the API.
-     */
-    function imageAssetonSuccess(data) {
-        let assetGallery = `
-    <div class="form-group">
-      <label for="name" class="col-sm-2">Logo (64x64)</label>
-      <div class="col-sm-10">
-        <link href="/assets/css/uploadfile.css" rel="stylesheet">
-        <div id="fileuploader">Upload</div>
-      </div>
-    </div>
-  `;
-
-        if (data.files.length > 0) {
-            assetGallery += '<div class="row">';
-
-            for (const file of data.files) {
-                assetGallery += `
-        <div class="col-lg-4 col-md-4 col-sm-4 col-xs-6">
-          <div class="fix">
-            <img src="${file.path}">
-            <button id="close_image">
-              X
-            </button>
-            <div class="desc">
-              <p class="desc_content">${file.name}</p>
-            </div>
-          </div>
-        </div>
-      `;
-            }
-
-            assetGallery += '</div>';
-        }
-
-        $('#enlargeProfilecontent').empty().append(assetGallery);
-    }
 
     /**
      * Builds a datalist element and sets its inner HTML based on the provided data.
      *
      * @param {string} id - The ID of the datalist element.
-     * @param {Object} elementOptionsAjax - The data used to populate the datalist.
+     * @param {Object} elementOptionsAJAX - The data used to populate the datalist.
      * @param {string} url - The URL containing the order of the properties.
      */
-    function buildDatalist(id, elementOptionsAjax, url) {
+    function buildDatalist(id, elementOptionsAJAX, url) {
         let tempType = '';
 
         const datalistElement = document.getElementById(`${id}_list`);
         if (datalistElement) {
             // Get the order of the properties from the URL
             const order = url.match(/column=([^&]+)/)[1].split(",");
-            for (const x in elementOptionsAjax[id]) {
+            for (const x in elementOptionsAJAX[id]) {
                 let additionalValue = '';
-                if (Object.keys(elementOptionsAjax[id][x]).length > 2) {
-                    for (let y = 2, len = Object.keys(elementOptionsAjax[id][x]).length; y < len; y++) {
-                        additionalValue += ` data-value_${y}="${elementOptionsAjax[id][x][order[y]]}"`;
+                if (Object.keys(elementOptionsAJAX[id][x]).length > 2) {
+                    for (let y = 2, len = Object.keys(elementOptionsAJAX[id][x]).length; y < len; y++) {
+                        additionalValue += ` data-value_${y}="${elementOptionsAJAX[id][x][order[y]]}"`;
                     }
                 }
 
-                tempType += `<option ${additionalValue} data-value="${elementOptionsAjax[id][x][order[0]]}" value="${elementOptionsAjax[id][x][order[1]]}">${elementOptionsAjax[id][x][order[1]]}</option>`;
+                tempType += `<option ${additionalValue} data-value="${elementOptionsAJAX[id][x][order[0]]}" value="${elementOptionsAJAX[id][x][order[1]]}">${elementOptionsAJAX[id][x][order[1]]}</option>`;
             }
             if (tempType.length !== 0) {
                 datalistElement.innerHTML = tempType;
@@ -2234,7 +2281,7 @@ function validURL(url) {
 
         // The element is not in the DOM, so we need to retry
         setTimeout(() => {
-            buildDatalist(id, elementOptionsAjax, url);
+            buildDatalist(id, elementOptionsAJAX, url);
         }, 1000); // retry after 1 second
     }
 
@@ -2244,101 +2291,79 @@ function validURL(url) {
      */
     function generateDiv(id) {
         const parentContainer = document.getElementById('generated-divs-' + id);
-        let count = parentContainer.querySelectorAll('.col-md-6').length || 0;
+        let count = parentContainer.querySelectorAll('.sfb-col-md-6').length || 0;
         parentContainer.innerHTML += `
-        <div id="generated-divlet-${count}" class="col-md-6 col-lg-6 col-sm-6">
-            <div class="btn-group" role="group" aria-label="...">
-                <input class="btn-group form-control attribute-name-input" placeholder="Attribute Name" type="text">
-                <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        <span class="attribute-type">Attribute Type:</span>
-                        <span class="caret"></span>
-                    </button>
-                    <ul class="dropdown-menu">
-                        <li><a href="#" data-value="text">Text</a></li>
-                        <li><a href="#" data-value="price">Price</a></li>
-                        <li><a href="#" data-value="image">Image</a></li>
-                    </ul>
-                </div>
-                <button class="delete-input btn btn-danger btn-group">&times;</button>
+    <div id="generated-divlet-${count}" class="sfb-col-md-6 sfb-col-lg-6 sfb-col-sm-6">
+        <div class="sfb-btn-group" role="group" aria-label="...">
+            <input class="sfb-btn-group sfb-form-control sfb-attribute-name-input" placeholder="Attribute Name" type="text">
+            <div class="btn-group" role="group">
+                <button type="button" class="sfb-btn sfb-btn-default sfb-dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <span class="sfb-attribute-type">Attribute Type:</span>
+                    <span class="caret"></span>
+                </button>
+                <ul class="sfb-dropdown-menu">
+                    <li><a href="#" data-value="text">Text</a></li>
+                    <li><a href="#" data-value="price">Price</a></li>
+                    <li><a href="#" data-value="image">Image</a></li>
+                </ul>
             </div>
-            <br><br>
-            <div class="input-container"></div>
-            <br>
-            <div><button class="delete-input btn btn-success">+</button></div>
-            <br><br>
-        </div>`;
+            <button class="sfb-delete-input sfb-btn sfb-btn-danger sfb-btn-group">&times;</button>
+        </div>
+        <br><br>
+        <div class="sfb-input-container"></div>
+        <br>
+        <div><button class="sfb-delete-input sfb-btn btn-success">+</button></div>
+        <br><br>
+    </div>`;
 
         const container = parentContainer.querySelector('#generated-divlet-' + count);
 
-        $(parentContainer).on('click', '.dropdown-menu a', function () {
-            const selected = $(this).data('value');
-            container.querySelector('.attribute-type').innerHTML = selected;
+        parentContainer.addEventListener('click', function (event) {
+            if (event.target.matches('.sfb-dropdown-menu a')) {
+                const selected = event.target.getAttribute('data-value');
+                container.querySelector('.sfb-attribute-type').innerHTML = selected;
 
-            const inputContainer = container.querySelector('.input-container');
-            let newInnerHtml;
+                const inputContainer = container.querySelector('.sfb-input-container');
+                let newInnerHtml;
 
-            if (selected === 'text') {
-                newInnerHtml = '<input type="text" class="form-control btn-group attribute-input" />';
-            } else if (selected === 'price') {
-                newInnerHtml = '<input type="number" class="form-control btn-group attribute-input" />';
-            } else if (selected === 'image') {
-                newInnerHtml = `
-                <input type="text" list="images-${id}" class="form-control btn-group attribute-input" />
+                if (selected === 'text') {
+                    newInnerHtml = '<input type="text" class="sfb-form-control sfb-btn-group sfb-attribute-input" />';
+                } else if (selected === 'price') {
+                    newInnerHtml = '<input type="number" class="sfb-form-control sfb-btn-group sfb-attribute-input" />';
+                } else if (selected === 'image') {
+                    newInnerHtml = `
+                <input type="text" list="images-${id}" class="sfb-form-control sfb-btn-group sfb-attribute-input" />
                 <datalist id="images-${id}">
                     <option value="image1.jpg">
                     <option value="image2.jpg">
                     <option value="image3.jpg">
                 </datalist>`;
+                }
+                inputContainer.innerHTML = `<div class="sfb-btn-group" role="group">${newInnerHtml}<button class="sfb-delete-input sfb-btn sfb-btn-danger sfb-btn-group">&times;</button></div>`;
+            } else if (event.target.matches('.delete-input')) {
+                container.remove();
             }
-            inputContainer.innerHTML = `<div class="btn-group" role="group">${newInnerHtml}<button class="delete-input btn btn-danger btn-group">&times;</button></div>`;
-        });
-
-        $(parentContainer).on('click', '.delete-input', function () {
-            container.remove();
         });
     }
-    /**
-     * Show a modal with a form to input questionnaire ideas.
-     */
-    function showQuestionnairePrompt() {
-        const content = `
-    <label>Input your questionnaire ideas below:</label>
-    <textarea required class="form-control" id="prompt_textarea" placeholder="Input your prompt here">Generate a simple questionnaire to evaluate a presenter after a presentation</textarea>
-    <br>
-    <button id="prompt_button" class="form-control btn-success btn bottom">Generate Questionnaire</button>
-  `;
 
-        $('#enlargeProfilecontent').empty().append(content);
-        $('#prompt_button').on('click', sendPrompt);
-        $('#enlargeProfile').modal('show');
+
+    /**
+     * Show the modal with the given ID.
+     * @param {string} modalId - The ID of the modal to show.
+     */
+    function showModal(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.style.display = "block";
     }
 
     /**
-     * Function to be called when the Generate Questionnaire button is clicked.
+     * Hide the modal with the given ID.
+     * @param {string} modalId - The ID of the modal to hide.
      */
-    function sendPrompt() {
-        $("#prompt_button").button('loading');
-        var prompt = $('#prompt_textarea').val()
-        var headers = {};
-        if (jwt) {
-            headers.Authorization = 'Basic '+jwt;
-        }
-        var myObj = {};
-        myObj.prompt = prompt;
-        $.ajax({
-            url: '/admin/formsCon.php?ai_prompt=true',
-            type: "POST",
-            headers: headers,
-            crossDomain: true,
-            data: myObj,
-            dataType: 'json',
-            success: function (result, textStatus, request) {
-                $(".connected").rendelize(JSON.parse(result.main_form),3);
-                $('#enlargeProfile').modal('hide');
-            }
-        })
+    function hideModal(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.style.display = "none";
     }
 
 
-})(); 
+})();
